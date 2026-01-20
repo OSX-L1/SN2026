@@ -47,20 +47,44 @@
 
         const { useState, useEffect, useRef } = React;
 
-        // --- Firebase Setup ---
+        // ==========================================
+        // ส่วนการตั้งค่า Firebase (ใส่ข้อมูลของคุณแล้ว)
+        // ==========================================
+        const YOUR_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCsi2LJcpVAiFBXnmc5XgiIt3UlNFeo2lI",
+            authDomain: "sn2026-9e19e.firebaseapp.com",
+            projectId: "sn2026-9e19e",
+            storageBucket: "sn2026-9e19e.firebasestorage.app",
+            messagingSenderId: "45923511775",
+            appId: "1:45923511775:web:04eca2038d60bfa393a86a",
+            measurementId: "G-PZ1GJM6VHC"
+        };
+
+        // --- Firebase Setup Logic ---
         let db = null;
         let auth = null;
-        let appId = 'default-app-id';
+        let appId = 'sunny-blind-system'; // ชื่อ App สำหรับแยกข้อมูล
 
         try {
-            if (typeof __firebase_config !== 'undefined') {
-                const firebaseConfig = JSON.parse(__firebase_config);
+            let firebaseConfig = null;
+            
+            // 1. ใช้ค่าที่คุณให้มา
+            if (YOUR_FIREBASE_CONFIG) {
+                firebaseConfig = YOUR_FIREBASE_CONFIG;
+            } 
+            // 2. ถ้าไม่มี ให้ลองใช้ค่าจาก environment (สำรอง)
+            else if (typeof __firebase_config !== 'undefined') {
+                firebaseConfig = JSON.parse(__firebase_config);
+                if (typeof __app_id !== 'undefined') appId = __app_id;
+            }
+
+            if (firebaseConfig) {
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
-                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                console.log("Firebase initialized successfully");
             } else {
-                console.warn("Firebase config not found. Using local storage mode.");
+                console.warn("Firebase config not found. Running in Offline Mode (localStorage).");
             }
         } catch (e) {
             console.error("Firebase init error:", e);
