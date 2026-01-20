@@ -207,7 +207,7 @@
                         // alert('บันทึกข้อมูลออนไลน์เรียบร้อยแล้ว');
                     } catch (e) {
                         console.error("Save error:", e);
-                        alert('เกิดข้อผิดพลาดในการบันทึกออนไลน์ (บันทึกในเครื่องแทน): ' + e.message);
+                        alert('เกิดข้อผิดพลาดในการบันทึกออนไลน์ (อาจยังไม่ได้เปิด Database หรือตั้งค่า Rules): ' + e.message);
                         localStorage.setItem('blindAppConfig', JSON.stringify(newConfig));
                     }
                 } else {
@@ -680,6 +680,7 @@
                                 <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                                     <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mt-2">ตั้งค่าทั่วไป</h3>
                                     <AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} />
+                                    <div className="text-xs text-slate-400 mt-1 mb-3">⚠️ ต้องเป็นลิงก์ (URL) ที่ขึ้นต้นด้วย https:// เท่านั้น (เช่นลิงก์จาก Google Drive หรือเว็บฝากรูป) ไม่ใช่ที่อยู่ไฟล์ในเครื่องคอมพิวเตอร์</div>
 
                                     <h3 className="text-sm font-bold text-blue-600 border-b pb-2 mt-2">ม่านม้วน (External)</h3>
                                     <AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" />
