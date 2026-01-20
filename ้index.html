@@ -80,14 +80,17 @@
 
         try {
             // ใช้ firebase global namespace แทนการ import
-            if (!firebase.apps.length) {
+            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                console.log("Firebase (Compat) initialized");
+            } else if (typeof firebase !== 'undefined') {
+                auth = firebase.auth();
+                db = firebase.firestore();
             }
-            auth = firebase.auth();
-            db = firebase.firestore();
-            console.log("Firebase (Compat) initialized");
         } catch (e) {
-            console.error("Firebase init error:", e);
+            console.error("Firebase init error (Running offline mode):", e);
         }
 
         // --- Icons (SVG) ---
@@ -143,6 +146,15 @@
 
             // Firebase Initialization & Sync
             useEffect(() => {
+                const loadFromLocal = () => {
+                    const saved = localStorage.getItem('blindAppConfig');
+                    if (saved) {
+                        try {
+                            setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(saved) });
+                        } catch(e) {}
+                    }
+                };
+
                 const initAuth = async () => {
                     try {
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -151,7 +163,8 @@
                             await auth.signInAnonymously();
                         }
                     } catch (error) {
-                        console.error("Auth error:", error);
+                        console.warn("Auth failed, switching to offline mode:", error);
+                        loadFromLocal(); // Load local config if auth fails
                     }
                 };
 
@@ -160,32 +173,38 @@
                     const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
                         setUser(currentUser);
                         if (currentUser) {
-                            setIsFirebaseReady(true);
                             // Start listening to config
-                            // ใช้ syntax แบบ Compat: db.doc() และ onSnapshot
-                            const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
-                            const unsubscribeConfig = configRef.onSnapshot((docSnap) => {
-                                if (docSnap.exists) {
-                                    setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() });
-                                } else {
-                                    // Create default if not exists
-                                    configRef.set(DEFAULT_CONFIG).catch(console.error);
-                                }
-                            }, (error) => {
-                                console.error("Config sync error:", error);
-                            });
-                            return () => unsubscribeConfig();
+                            try {
+                                const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
+                                const unsubscribeConfig = configRef.onSnapshot((docSnap) => {
+                                    if (docSnap.exists) {
+                                        setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() });
+                                        setIsFirebaseReady(true);
+                                    } else {
+                                        // Create default if not exists
+                                        configRef.set(DEFAULT_CONFIG).then(() => setIsFirebaseReady(true)).catch(err => {
+                                            console.warn("Create DB failed (likely permission/quota), using offline:", err);
+                                            loadFromLocal();
+                                        });
+                                    }
+                                }, (error) => {
+                                    console.warn("Config sync error (using offline mode):", error);
+                                    setIsFirebaseReady(false);
+                                    loadFromLocal();
+                                });
+                                return () => unsubscribeConfig();
+                            } catch (err) {
+                                console.warn("Firestore access failed:", err);
+                                loadFromLocal();
+                            }
+                        } else {
+                            loadFromLocal();
                         }
                     });
                     return () => unsubscribeAuth();
                 } else {
-                    // Fallback to localStorage
-                    const saved = localStorage.getItem('blindAppConfig');
-                    if (saved) {
-                        try {
-                            setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(saved) });
-                        } catch(e) {}
-                    }
+                    // Fallback to localStorage if Firebase library not loaded
+                    loadFromLocal();
                 }
             }, []);
 
@@ -193,19 +212,20 @@
             const saveConfig = async (newConfig) => {
                 setConfig(newConfig); // Optimistic update
                 
-                if (db && user) {
+                if (db && user && isFirebaseReady) {
                     try {
                         const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
                         await configRef.set(newConfig);
                     } catch (e) {
                         console.error("Save error:", e);
-                        alert('เกิดข้อผิดพลาดในการบันทึกออนไลน์: ' + e.message);
+                        // Don't alert detailed error to user if it's just a network/perm issue, just save locally
                         localStorage.setItem('blindAppConfig', JSON.stringify(newConfig));
+                        alert('บันทึกในเครื่องเรียบร้อยแล้ว (Online Save Failed)');
                     }
                 } else {
                     // Local Storage Fallback
                     localStorage.setItem('blindAppConfig', JSON.stringify(newConfig));
-                    alert('บันทึกในเครื่องเรียบร้อยแล้ว (โหมดออฟไลน์)');
+                    alert('บันทึกในเครื่องเรียบร้อยแล้ว (Offline Mode)');
                 }
             };
 
@@ -230,7 +250,7 @@
                             <div className="flex items-center gap-2">
                                 {isFirebaseReady ? 
                                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Online"></span> : 
-                                    <span className="w-2 h-2 rounded-full bg-gray-300" title="Offline"></span>
+                                    <span className="w-2 h-2 rounded-full bg-gray-300" title="Offline Mode"></span>
                                 }
                             </div>
                         </div>
