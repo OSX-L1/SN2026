@@ -45,7 +45,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
 
         // ==========================================
         // 1. การตั้งค่า Firebase (แก้ไขให้ใช้ Config ของคุณ)
@@ -120,7 +120,7 @@
 
         // --- Default Config ---
         const DEFAULT_CONFIG = {
-            logoUrl: 'https://cdn-icons-png.flaticon.com/512/2807/2807469.png', // ใช้รูป Placeholder แทน Local Path ที่อาจจะไม่ขึ้น
+            logoUrl: 'https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png',
             hardwarePrice: 1956,
             topRailPrice: 200,
             bottomRailPrice: 150,
@@ -128,6 +128,10 @@
             fabricFactor: 1.2,
             basswoodPrice: 789,
             fauxwoodPrice: 750,
+            // เพิ่มการตั้งค่าการแสดงผล
+            showExternal: true,
+            showInternal: true,
+            showWooden: true,
         };
 
         // --- Main Component ---
@@ -321,6 +325,25 @@
                 width: '', height: '', price: '', qty: '1', side: 'ขวา', woodType: 'BASSWOOD'
             });
 
+            // สร้างรายการโหมดการคำนวณตามการตั้งค่า
+            const availableModes = useMemo(() => {
+                const modes = [];
+                if (config.showExternal) modes.push({ id: 'external', label: 'ม่านภายนอก' });
+                if (config.showInternal) modes.push({ id: 'internal', label: 'ม่านภายใน' });
+                if (config.showWooden) modes.push({ id: 'wooden', label: 'มู่ลี่ไม้' });
+                return modes;
+            }, [config]);
+
+            // ตรวจสอบและเปลี่ยนโหมดถ้าโหมดปัจจุบันถูกปิด
+            useEffect(() => {
+                if (availableModes.length > 0) {
+                    const currentIsValid = availableModes.find(m => m.id === calcMode);
+                    if (!currentIsValid) {
+                        setCalcMode(availableModes[0].id);
+                    }
+                }
+            }, [availableModes, calcMode]);
+
             useEffect(() => { if (errorMsg) setErrorMsg(''); }, [formData]);
 
             const handleInputChange = (e) => {
@@ -407,88 +430,102 @@
                         <h2 className="text-2xl font-bold text-slate-800">คำนวณราคา</h2>
                     </div>
                     
-                    <div className="bg-slate-100 p-1.5 rounded-xl flex text-sm font-bold mb-6 overflow-x-auto">
-                        <button onClick={() => setCalcMode('external')} className={`flex-1 py-2.5 px-3 rounded-lg transition-all whitespace-nowrap ${calcMode === 'external' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}>ม่านภายนอก</button>
-                        <button onClick={() => setCalcMode('internal')} className={`flex-1 py-2.5 px-3 rounded-lg transition-all whitespace-nowrap ${calcMode === 'internal' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}>ม่านภายใน</button>
-                        <button onClick={() => setCalcMode('wooden')} className={`flex-1 py-2.5 px-3 rounded-lg transition-all whitespace-nowrap ${calcMode === 'wooden' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}>มู่ลี่ไม้</button>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6 relative overflow-hidden">
-                        <div className={`absolute top-0 left-0 w-1.5 h-full ${calcMode === 'external' ? 'bg-orange-400' : calcMode === 'wooden' ? 'bg-amber-600' : 'bg-red-400'}`}></div>
-                        
-                        {calcMode === 'wooden' && (
-                            <div className="mb-5">
-                                <label className="text-sm font-bold text-slate-500 mb-2 block">ชนิดไม้</label>
-                                <div className="flex gap-3">
-                                    <label className={`flex-1 cursor-pointer border-2 rounded-xl py-3 px-2 flex items-center justify-center gap-1 transition-all ${formData.woodType === 'BASSWOOD' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
-                                        <input type="radio" name="woodType" value="BASSWOOD" checked={formData.woodType === 'BASSWOOD'} onChange={handleInputChange} className="hidden" />
-                                        <span className="text-sm font-bold">BASSWOOD</span>
-                                    </label>
-                                    <label className={`flex-1 cursor-pointer border-2 rounded-xl py-3 px-2 flex items-center justify-center gap-1 transition-all ${formData.woodType === 'FAUX WOOD' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
-                                        <input type="radio" name="woodType" value="FAUX WOOD" checked={formData.woodType === 'FAUX WOOD'} onChange={handleInputChange} className="hidden" />
-                                        <span className="text-sm font-bold">FAUX WOOD</span>
-                                    </label>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-5 mb-5">
-                            <div>
-                                <label className="text-sm font-bold text-slate-500 mb-2 block">ความกว้าง (cm)</label>
-                                <input type="number" name="width" value={formData.width} onChange={handleInputChange} placeholder="0" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all" />
-                            </div>
-                            <div>
-                                <label className="text-sm font-bold text-slate-500 mb-2 block">ความสูง (cm)</label>
-                                <input type="number" name="height" value={formData.height} onChange={handleInputChange} placeholder="0" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all" />
-                            </div>
+                    {availableModes.length > 0 ? (
+                        <div className="bg-slate-100 p-1.5 rounded-xl flex text-sm font-bold mb-6 overflow-x-auto">
+                            {availableModes.map(mode => (
+                                <button 
+                                    key={mode.id}
+                                    onClick={() => setCalcMode(mode.id)} 
+                                    className={`flex-1 py-2.5 px-3 rounded-lg transition-all whitespace-nowrap ${calcMode === mode.id ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}
+                                >
+                                    {mode.label}
+                                </button>
+                            ))}
                         </div>
+                    ) : (
+                        <div className="bg-slate-100 p-4 rounded-xl text-center text-slate-500 mb-6 font-bold">
+                            ปิดปรับปรุงระบบคำนวณชั่วคราว
+                        </div>
+                    )}
 
-                        <div className="grid grid-cols-2 gap-5 mb-5">
-                            {calcMode !== 'wooden' ? (
-                                <div>
-                                    <label className="text-sm font-bold text-slate-500 mb-2 block">ราคาผ้า (ตร.ล.)</label>
-                                    <input type="number" name="price" value={formData.price} onChange={handleInputChange} placeholder="฿" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all" />
-                                </div>
-                            ) : (
-                                <div>
-                                    <label className="text-sm font-bold text-slate-500 mb-2 block">ราคา (ตร.ล.)</label>
-                                    <div className="w-full bg-slate-100 rounded-xl p-3.5 font-bold text-lg text-slate-500 border border-slate-200">
-                                        {formatCurrency(formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice)}
+                    {availableModes.length > 0 && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6 relative overflow-hidden">
+                            <div className={`absolute top-0 left-0 w-1.5 h-full ${calcMode === 'external' ? 'bg-orange-400' : calcMode === 'wooden' ? 'bg-amber-600' : 'bg-red-400'}`}></div>
+                            
+                            {calcMode === 'wooden' && (
+                                <div className="mb-5">
+                                    <label className="text-sm font-bold text-slate-500 mb-2 block">ชนิดไม้</label>
+                                    <div className="flex gap-3">
+                                        <label className={`flex-1 cursor-pointer border-2 rounded-xl py-3 px-2 flex items-center justify-center gap-1 transition-all ${formData.woodType === 'BASSWOOD' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
+                                            <input type="radio" name="woodType" value="BASSWOOD" checked={formData.woodType === 'BASSWOOD'} onChange={handleInputChange} className="hidden" />
+                                            <span className="text-sm font-bold">BASSWOOD</span>
+                                        </label>
+                                        <label className={`flex-1 cursor-pointer border-2 rounded-xl py-3 px-2 flex items-center justify-center gap-1 transition-all ${formData.woodType === 'FAUX WOOD' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
+                                            <input type="radio" name="woodType" value="FAUX WOOD" checked={formData.woodType === 'FAUX WOOD'} onChange={handleInputChange} className="hidden" />
+                                            <span className="text-sm font-bold">FAUX WOOD</span>
+                                        </label>
                                     </div>
                                 </div>
                             )}
-                            <div>
-                                <label className="text-sm font-bold text-slate-500 mb-2 block">จำนวน</label>
-                                <div className="flex bg-slate-50 rounded-xl overflow-hidden h-[54px]">
-                                    <button onClick={() => setFormData(p => ({...p, qty: Math.max(1, parseInt(p.qty)-1 || 1).toString()}))} className="px-4 hover:bg-slate-200 text-slate-500 font-bold text-lg">-</button>
-                                    <input type="number" name="qty" value={formData.qty} onChange={handleInputChange} className="w-full bg-transparent text-center font-bold text-lg text-slate-700 focus:outline-none" />
-                                    <button onClick={() => setFormData(p => ({...p, qty: (parseInt(p.qty)+1 || 1).toString()}))} className="px-4 hover:bg-slate-200 text-slate-500 font-bold text-lg">+</button>
+
+                            <div className="grid grid-cols-2 gap-5 mb-5">
+                                <div>
+                                    <label className="text-sm font-bold text-slate-500 mb-2 block">ความกว้าง (cm)</label>
+                                    <input type="number" name="width" value={formData.width} onChange={handleInputChange} placeholder="0" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all" />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-bold text-slate-500 mb-2 block">ความสูง (cm)</label>
+                                    <input type="number" name="height" value={formData.height} onChange={handleInputChange} placeholder="0" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all" />
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="mb-6">
-                            <label className="text-sm font-bold text-slate-500 mb-2 block">ตำแหน่งโซ่/สลิง</label>
-                            <div className="flex gap-3">
-                                {['ซ้าย', 'ขวา'].map((s) => (
-                                    <label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
-                                        <input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" />
-                                        <span className="text-base font-bold">{s}</span>
-                                    </label>
-                                ))}
+                            <div className="grid grid-cols-2 gap-5 mb-5">
+                                {calcMode !== 'wooden' ? (
+                                    <div>
+                                        <label className="text-sm font-bold text-slate-500 mb-2 block">ราคาผ้า (ตร.ล.)</label>
+                                        <input type="number" name="price" value={formData.price} onChange={handleInputChange} placeholder="฿" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-100 transition-all" />
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className="text-sm font-bold text-slate-500 mb-2 block">ราคา (ตร.ล.)</label>
+                                        <div className="w-full bg-slate-100 rounded-xl p-3.5 font-bold text-lg text-slate-500 border border-slate-200">
+                                            {formatCurrency(formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice)}
+                                        </div>
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="text-sm font-bold text-slate-500 mb-2 block">จำนวน</label>
+                                    <div className="flex bg-slate-50 rounded-xl overflow-hidden h-[54px]">
+                                        <button onClick={() => setFormData(p => ({...p, qty: Math.max(1, parseInt(p.qty)-1 || 1).toString()}))} className="px-4 hover:bg-slate-200 text-slate-500 font-bold text-lg">-</button>
+                                        <input type="number" name="qty" value={formData.qty} onChange={handleInputChange} className="w-full bg-transparent text-center font-bold text-lg text-slate-700 focus:outline-none" />
+                                        <button onClick={() => setFormData(p => ({...p, qty: (parseInt(p.qty)+1 || 1).toString()}))} className="px-4 hover:bg-slate-200 text-slate-500 font-bold text-lg">+</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
 
-                        {errorMsg && (
-                            <div className="mb-4 p-3 bg-red-50 text-red-500 text-sm font-bold rounded-xl flex items-center gap-2 animate-pulse">
-                                <Icons.AlertCircle size={20} /> {errorMsg}
+                            <div className="mb-6">
+                                <label className="text-sm font-bold text-slate-500 mb-2 block">ตำแหน่งโซ่/สลิง</label>
+                                <div className="flex gap-3">
+                                    {['ซ้าย', 'ขวา'].map((s) => (
+                                        <label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? 'border-red-500 bg-red-50 text-red-700' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
+                                            <input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" />
+                                            <span className="text-base font-bold">{s}</span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
-                        )}
 
-                        <button onClick={calculateItem} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-red-200 active:scale-95 transition-all flex justify-center items-center gap-2">
-                            <Icons.Plus size={24} /> เพิ่มรายการ
-                        </button>
-                    </div>
+                            {errorMsg && (
+                                <div className="mb-4 p-3 bg-red-50 text-red-500 text-sm font-bold rounded-xl flex items-center gap-2 animate-pulse">
+                                    <Icons.AlertCircle size={20} /> {errorMsg}
+                                </div>
+                            )}
+
+                            <button onClick={calculateItem} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-red-200 active:scale-95 transition-all flex justify-center items-center gap-2">
+                                <Icons.Plus size={24} /> เพิ่มรายการ
+                            </button>
+                        </div>
+                    )}
 
                     {items.length > 0 && (
                         <div className="space-y-4">
@@ -682,6 +719,13 @@
                                     <AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} />
                                     <div className="text-xs text-slate-400 mt-1 mb-3">⚠️ ต้องเป็นลิงก์ (URL) ที่ขึ้นต้นด้วย https:// เท่านั้น (เช่นลิงก์จาก Google Drive หรือเว็บฝากรูป) ไม่ใช่ที่อยู่ไฟล์ในเครื่องคอมพิวเตอร์</div>
 
+                                    <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mt-4">เมนูคำนวณ (เปิด/ปิด)</h3>
+                                    <div className="space-y-2 mt-2">
+                                        <AdminToggle label="ม่านภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} />
+                                        <AdminToggle label="ม่านภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} />
+                                        <AdminToggle label="มู่ลี่ไม้" value={editConfig.showWooden} onChange={v => setEditConfig({...editConfig, showWooden: v})} />
+                                    </div>
+
                                     <h3 className="text-sm font-bold text-blue-600 border-b pb-2 mt-2">ม่านม้วน (External)</h3>
                                     <AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" />
                                     <AdminInput label="ราคารางบน" value={editConfig.topRailPrice} onChange={(v) => setEditConfig({...editConfig, topRailPrice: v})} unit="บาท" />
@@ -705,6 +749,18 @@
                 </div>
             );
         };
+
+        const AdminToggle = ({ label, value, onChange }) => (
+            <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <span className="text-sm font-bold text-slate-700">{label}</span>
+                <button 
+                    onClick={() => onChange(!value)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${value ? 'bg-green-500' : 'bg-slate-300'}`}
+                >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out ${value ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+            </div>
+        );
 
         const AdminInput = ({ label, value, onChange, unit, step = 1 }) => (
             <div>
