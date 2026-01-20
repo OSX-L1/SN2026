@@ -19,6 +19,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+    <!-- Firebase Compat SDKs (รองรับการเปิดไฟล์ HTML โดยตรง) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
     <style>
         /* SF Pro / System Fonts Stack */
         body { 
@@ -39,12 +44,8 @@
 <body>
     <div id="root"></div>
 
-    <!-- Script Type Module for Firebase Imports -->
-    <script type="text/babel" data-type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
+    <!-- ใช้ type="text/babel" ปกติ ไม่ต้องใช้ module เพื่อลดปัญหา CORS -->
+    <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
         // ==========================================
@@ -60,12 +61,11 @@
             measurementId: "G-PZ1GJM6VHC"
         };
 
-        // --- Firebase Setup Logic ---
+        // --- Firebase Setup Logic (Compat Version) ---
         let db = null;
         let auth = null;
         let appId = 'sunny-blind-system';
         
-        // ลองใช้ config จาก environment ถ้ามี (สำหรับ Canvas Preview) หรือใช้ของผู้ใช้
         let firebaseConfig = USER_FIREBASE_CONFIG;
         if (typeof __firebase_config !== 'undefined' && __firebase_config) {
             try {
@@ -79,10 +79,13 @@
         if (typeof __app_id !== 'undefined') appId = __app_id;
 
         try {
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            console.log("Firebase initialized");
+            // ใช้ firebase global namespace แทนการ import
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            auth = firebase.auth();
+            db = firebase.firestore();
+            console.log("Firebase (Compat) initialized");
         } catch (e) {
             console.error("Firebase init error:", e);
         }
@@ -143,9 +146,9 @@
                 const initAuth = async () => {
                     try {
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
+                            await auth.signInWithCustomToken(__initial_auth_token);
                         } else {
-                            await signInAnonymously(auth);
+                            await auth.signInAnonymously();
                         }
                     } catch (error) {
                         console.error("Auth error:", error);
@@ -154,19 +157,19 @@
 
                 if (auth) {
                     initAuth();
-                    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+                    const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
                         setUser(currentUser);
                         if (currentUser) {
                             setIsFirebaseReady(true);
                             // Start listening to config
-                            // แก้ไข path ให้ถูกต้อง: ต้องมี 6 segments (artifacts/appId/public/data/config/main)
-                            const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main');
-                            const unsubscribeConfig = onSnapshot(configRef, (docSnap) => {
-                                if (docSnap.exists()) {
+                            // ใช้ syntax แบบ Compat: db.doc() และ onSnapshot
+                            const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
+                            const unsubscribeConfig = configRef.onSnapshot((docSnap) => {
+                                if (docSnap.exists) {
                                     setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() });
                                 } else {
                                     // Create default if not exists
-                                    setDoc(configRef, DEFAULT_CONFIG).catch(console.error);
+                                    configRef.set(DEFAULT_CONFIG).catch(console.error);
                                 }
                             }, (error) => {
                                 console.error("Config sync error:", error);
@@ -192,9 +195,8 @@
                 
                 if (db && user) {
                     try {
-                        // แก้ไข path ให้ถูกต้อง: เพิ่ม /main
-                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), newConfig);
-                        // alert('บันทึกข้อมูลออนไลน์เรียบร้อยแล้ว (ทุกคนจะเห็นค่านี้)');
+                        const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
+                        await configRef.set(newConfig);
                     } catch (e) {
                         console.error("Save error:", e);
                         alert('เกิดข้อผิดพลาดในการบันทึกออนไลน์: ' + e.message);
