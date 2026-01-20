@@ -229,7 +229,7 @@
                         <div className="h-16 bg-white/95 backdrop-blur-sm w-full absolute top-0 z-30 flex justify-between items-center px-5 shadow-sm border-b border-slate-50">
                             <div className="flex items-center gap-2">
                                 {activeTab !== 'home' && (
-                                    <img src={config.logoUrl} alt="Logo" className="h-10 w-auto object-contain" onError={(e) => e.target.style.display = 'none'} />
+                                    <img src={config.logoUrl} alt="Logo" className="h-14 w-auto object-contain" onError={(e) => e.target.style.display = 'none'} />
                                 )}
                                 {activeTab !== 'home' && config.logoUrl === DEFAULT_CONFIG.logoUrl && (
                                      <span className="font-bold text-slate-700">SUNNY</span>
@@ -284,7 +284,7 @@
         // --- Pages ---
         const HomePage = ({ setActiveTab, config }) => (
             <div className="flex flex-col items-center justify-center h-full pt-32 p-6 text-center fade-in pb-32">
-                <img src={config.logoUrl} alt="Logo" className="h-40 w-auto object-contain mb-6 drop-shadow-md" onError={(e) => e.target.style.display = 'none'} />
+                <img src={config.logoUrl} alt="Logo" className="h-52 w-auto object-contain mb-6 drop-shadow-md" onError={(e) => e.target.style.display = 'none'} />
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">ระบบร้านม่านม้วน</h2>
                 <p className="text-gray-500 mb-8 max-w-xs leading-relaxed text-base font-medium">
                   จัดการสต็อก คำนวณราคา และออกใบเสนอราคาได้ง่ายๆ ในที่เดียว
