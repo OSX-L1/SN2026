@@ -19,6 +19,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
+    <!-- Firebase Compat SDKs (เสถียรที่สุดสำหรับไฟล์ HTML เดี่ยว) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
     <style>
         /* SF Pro / System Fonts Stack */
         body { 
@@ -39,16 +44,11 @@
 <body>
     <div id="root"></div>
 
-    <!-- Script Type Module for Firebase Imports -->
-    <script type="text/babel" data-type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
+    <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
         // ==========================================
-        // ส่วนการตั้งค่า Firebase (ใส่ข้อมูลของคุณแล้ว)
+        // 1. การตั้งค่า Firebase (แก้ไขให้ใช้ Config ของคุณ)
         // ==========================================
         const YOUR_FIREBASE_CONFIG = {
             apiKey: "AIzaSyCsi2LJcpVAiFBXnmc5XgiIt3UlNFeo2lI",
@@ -60,37 +60,34 @@
             measurementId: "G-PZ1GJM6VHC"
         };
 
-        // --- Firebase Setup Logic ---
+        // --- Init System ---
         let db = null;
         let auth = null;
-        let appId = 'sunny-blind-system'; // ชื่อ App สำหรับแยกข้อมูล
+        let appId = 'sunny-blind-system'; // ชื่อ App
 
         try {
-            let firebaseConfig = null;
-            
-            // 1. ใช้ค่าที่คุณให้มา
-            if (YOUR_FIREBASE_CONFIG) {
-                firebaseConfig = YOUR_FIREBASE_CONFIG;
-            } 
-            // 2. ถ้าไม่มี ให้ลองใช้ค่าจาก environment (สำรอง)
-            else if (typeof __firebase_config !== 'undefined') {
-                firebaseConfig = JSON.parse(__firebase_config);
-                if (typeof __app_id !== 'undefined') appId = __app_id;
+            // เช็คว่ามี config จาก Environment หรือไม่ (ถ้าไม่มีใช้ของคุณ)
+            let finalConfig = YOUR_FIREBASE_CONFIG;
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                try {
+                    const envConfig = JSON.parse(__firebase_config);
+                    if (Object.keys(envConfig).length > 0) finalConfig = envConfig;
+                } catch(e){}
             }
+            if (typeof __app_id !== 'undefined') appId = __app_id;
 
-            if (firebaseConfig) {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                console.log("Firebase initialized successfully");
-            } else {
-                console.warn("Firebase config not found. Running in Offline Mode (localStorage).");
+            // Initialize Firebase Compat
+            if (typeof firebase !== 'undefined') {
+                if (!firebase.apps.length) firebase.initializeApp(finalConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                console.log("Firebase Connected");
             }
         } catch (e) {
-            console.error("Firebase init error:", e);
+            console.error("Firebase Init Error:", e);
         }
 
-        // --- Icons ---
+        // --- Icons (SVG) ---
         const Icon = ({ path, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
         );
@@ -123,7 +120,7 @@
 
         // --- Default Config ---
         const DEFAULT_CONFIG = {
-            logoUrl: 'image_b06e9f.png',
+            logoUrl: 'https://cdn-icons-png.flaticon.com/512/2807/2807469.png', // ใช้รูป Placeholder แทน Local Path ที่อาจจะไม่ขึ้น
             hardwarePrice: 1956,
             topRailPrice: 200,
             bottomRailPrice: 150,
@@ -144,44 +141,55 @@
 
             // Firebase Initialization & Sync
             useEffect(() => {
-                if (!auth || !db) {
-                    // Fallback to localStorage if Firebase not available
+                const loadLocal = () => {
                     const saved = localStorage.getItem('blindAppConfig');
-                    if (saved) setConfig(JSON.parse(saved));
+                    if (saved) {
+                        try { setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(saved) }); } catch(e){}
+                    }
+                };
+
+                // ถ้าเชื่อมต่อไม่ได้ ให้โหลดจากเครื่อง
+                if (!auth || !db) {
+                    loadLocal();
                     return;
                 }
 
                 const initAuth = async () => {
                     try {
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
+                            await auth.signInWithCustomToken(__initial_auth_token);
                         } else {
-                            await signInAnonymously(auth);
+                            await auth.signInAnonymously();
                         }
                     } catch (error) {
-                        console.error("Auth error:", error);
+                        console.warn("Auth failed, offline mode", error);
+                        loadLocal();
                     }
                 };
 
                 initAuth();
 
-                const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+                const unsubscribeAuth = auth.onAuthStateChanged((currentUser) => {
                     setUser(currentUser);
                     if (currentUser) {
                         setIsFirebaseReady(true);
                         // Start listening to config
-                        const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config');
-                        const unsubscribeConfig = onSnapshot(configRef, (docSnap) => {
-                            if (docSnap.exists()) {
-                                setConfig(docSnap.data());
+                        // FIX: ใช้ path ที่ถูกต้อง (6 ส่วน)
+                        const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
+                        const unsubscribeConfig = configRef.onSnapshot((docSnap) => {
+                            if (docSnap.exists) {
+                                setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() });
                             } else {
                                 // Create default if not exists
-                                setDoc(configRef, DEFAULT_CONFIG).catch(console.error);
+                                configRef.set(DEFAULT_CONFIG).catch(console.error);
                             }
                         }, (error) => {
                             console.error("Config sync error:", error);
+                            loadLocal();
                         });
                         return () => unsubscribeConfig();
+                    } else {
+                        loadLocal();
                     }
                 });
 
@@ -194,11 +202,12 @@
                 
                 if (db && user) {
                     try {
-                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config'), newConfig);
-                        alert('บันทึกข้อมูลออนไลน์เรียบร้อยแล้ว (ทุกคนจะเห็นค่านี้)');
+                        // FIX: ใช้ path ที่ถูกต้อง (6 ส่วน)
+                        await db.doc(`artifacts/${appId}/public/data/config/main`).set(newConfig);
+                        // alert('บันทึกข้อมูลออนไลน์เรียบร้อยแล้ว');
                     } catch (e) {
                         console.error("Save error:", e);
-                        alert('เกิดข้อผิดพลาดในการบันทึกออนไลน์ (บันทึกในเครื่องแทน)');
+                        alert('เกิดข้อผิดพลาดในการบันทึกออนไลน์ (บันทึกในเครื่องแทน): ' + e.message);
                         localStorage.setItem('blindAppConfig', JSON.stringify(newConfig));
                     }
                 } else {
@@ -220,7 +229,10 @@
                         <div className="h-16 bg-white/95 backdrop-blur-sm w-full absolute top-0 z-30 flex justify-between items-center px-5 shadow-sm border-b border-slate-50">
                             <div className="flex items-center gap-2">
                                 {activeTab !== 'home' && (
-                                    <img src={config.logoUrl} alt="Logo" className="h-16 w-auto object-contain" onError={(e) => e.target.style.display = 'none'} />
+                                    <img src={config.logoUrl} alt="Logo" className="h-10 w-auto object-contain" onError={(e) => e.target.style.display = 'none'} />
+                                )}
+                                {activeTab !== 'home' && config.logoUrl === DEFAULT_CONFIG.logoUrl && (
+                                     <span className="font-bold text-slate-700">SUNNY</span>
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
@@ -523,25 +535,35 @@
 
             const handleDownloadPDF = async () => {
                 if (!quoteRef.current || !window.html2canvas || !window.jspdf) {
-                    alert('กำลังโหลดไลบรารี กรุณารอสักครู่');
+                    alert('กำลังโหลดไลบรารี กรุณารอสักครู่ แล้วลองใหม่');
                     return;
                 }
-                const canvas = await window.html2canvas(quoteRef.current, { scale: 2, useCORS: true });
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                pdf.save(`Quotation_${Date.now()}.pdf`);
+                try {
+                    const canvas = await window.html2canvas(quoteRef.current, { scale: 2, useCORS: true });
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`Quotation_${Date.now()}.pdf`);
+                } catch (e) {
+                    console.error(e);
+                    alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+                }
             };
 
             const handleSaveImage = async () => {
                 if (!quoteRef.current || !window.html2canvas) return;
-                const canvas = await window.html2canvas(quoteRef.current, { scale: 2, useCORS: true });
-                const link = document.createElement('a');
-                link.download = `Quotation_${Date.now()}.png`;
-                link.href = canvas.toDataURL();
-                link.click();
+                try {
+                    const canvas = await window.html2canvas(quoteRef.current, { scale: 2, useCORS: true });
+                    const link = document.createElement('a');
+                    link.download = `Quotation_${Date.now()}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                } catch(e) {
+                    console.error(e);
+                    alert("เกิดข้อผิดพลาดในการบันทึกรูปภาพ");
+                }
             };
 
             return (
