@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUNNY Blind System</title>
+    
+    <!-- React Core -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        /* SF Pro / System Fonts Stack */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8fafc;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+        .printable-content { background: white; color: black; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Script Type Module for Firebase Imports -->
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const { useState, useEffect, useRef } = React;
+
+        // ==========================================
+        // ส่วนการตั้งค่า Firebase
+        // ==========================================
+        const USER_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCsi2LJcpVAiFBXnmc5XgiIt3UlNFeo2lI",
+            authDomain: "sn2026-9e19e.firebaseapp.com",
+            projectId: "sn2026-9e19e",
+            storageBucket: "sn2026-9e19e.firebasestorage.app",
+            messagingSenderId: "45923511775",
+            appId: "1:45923511775:web:04eca2038d60bfa393a86a",
+            measurementId: "G-PZ1GJM6VHC"
+        };
+
+        // --- Firebase Setup Logic ---
+        let db = null;
+        let auth = null;
+        let appId = 'sunny-blind-system';
+        
+        // ลองใช้ config จาก environment ถ้ามี (สำหรับ Canvas Preview) หรือใช้ของผู้ใช้
+        let firebaseConfig = USER_FIREBASE_CONFIG;
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try {
+                const envConfig = JSON.parse(__firebase_config);
+                if (Object.keys(envConfig).length > 0) {
+                    firebaseConfig = envConfig;
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        if (typeof __app_id !== 'undefined') appId = __app_id;
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            console.log("Firebase initialized");
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+
+        // --- Icons (SVG) ---
+        const Icon = ({ path, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
+        );
+        
+        const Icons = {
+            Home: (p) => <Icon {...p} path={<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></>} />,
+            Calculator: (p) => <Icon {...p} path={<><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></>} />,
+            CheckSquare: (p) => <Icon {...p} path={<><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></>} />,
+            Settings: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></>} />,
+            Box: (p) => <Icon {...p} path={<><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></>} />,
+            Plus: (p) => <Icon {...p} path={<><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></>} />,
+            Trash2: (p) => <Icon {...p} path={<><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></>} />,
+            FileText: (p) => <Icon {...p} path={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></>} />,
+            X: (p) => <Icon {...p} path={<><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></>} />,
+            ChevronDown: (p) => <Icon {...p} path={<polyline points="6 9 12 15 18 9"></polyline>} />,
+            ChevronUp: (p) => <Icon {...p} path={<polyline points="18 15 12 9 6 15"></polyline>} />,
+            Download: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></>} />,
+            Image: (p) => <Icon {...p} path={<><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></>} />,
+            AlertCircle: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></>} />,
+            Lock: (p) => <Icon {...p} path={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></>} />,
+            Save: (p) => <Icon {...p} path={<><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></>} />,
+            LogOut: (p) => <Icon {...p} path={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></>} />,
+            RotateCcw: (p) => <Icon {...p} path={<><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></>} />,
+        };
+
+        // --- Helper Functions ---
+        const formatCurrency = (amount) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount);
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+
+        // --- Default Config ---
+        const DEFAULT_CONFIG = {
+            logoUrl: 'https://cdn-icons-png.flaticon.com/512/2807/2807469.png',
+            hardwarePrice: 1956,
+            topRailPrice: 200,
+            bottomRailPrice: 150,
+            slingPrice: 138,
+            fabricFactor: 1.2,
+            basswoodPrice: 789,
+            fauxwoodPrice: 750,
+        };
+
+        // --- Main Component ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('calculator');
+            const [config, setConfig] = useState(DEFAULT_CONFIG);
+            const [showAdmin, setShowAdmin] = useState(false);
+            const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+            const [user, setUser] = useState(null);
+            const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+
+            // Firebase Initialization & Sync
+            useEffect(() => {
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Auth error:", error);
+                    }
+                };
+
+                if (auth) {
+                    initAuth();
+                    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+                        setUser(currentUser);
+                        if (currentUser) {
+                            setIsFirebaseReady(true);
+                            // Start listening to config
+                            // แก้ไข path ให้ถูกต้อง: ต้องมี 6 segments (artifacts/appId/public/data/config/main)
+                            const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main');
+                            const unsubscribeConfig = onSnapshot(configRef, (docSnap) => {
+                                if (docSnap.exists()) {
+                                    setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() });
+                                } else {
+                                    // Create default if not exists
+                                    setDoc(configRef, DEFAULT_CONFIG).catch(console.error);
+                                }
+                            }, (error) => {
+                                console.error("Config sync error:", error);
+                            });
+                            return () => unsubscribeConfig();
+                        }
+                    });
+                    return () => unsubscribeAuth();
+                } else {
+                    // Fallback to localStorage
+                    const saved = localStorage.getItem('blindAppConfig');
+                    if (saved) {
+                        try {
+                            setConfig({ ...DEFAULT_CONFIG, ...JSON.parse(saved) });
+                        } catch(e) {}
+                    }
+                }
+            }, []);
+
+            // Save Config Handler
+            const saveConfig = async (newConfig) => {
+                setConfig(newConfig); // Optimistic update
+                
+                if (db && user) {
+                    try {
+                        // แก้ไข path ให้ถูกต้อง: เพิ่ม /main
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), newConfig);
+                        // alert('บันทึกข้อมูลออนไลน์เรียบร้อยแล้ว (ทุกคนจะเห็นค่านี้)');
+                    } catch (e) {
+                        console.error("Save error:", e);
+                        alert('เกิดข้อผิดพลาดในการบันทึกออนไลน์: ' + e.message);
+                        localStorage.setItem('blindAppConfig', JSON.stringify(newConfig));
+                    }
+                } else {
+                    // Local Storage Fallback
+                    localStorage.setItem('blindAppConfig', JSON.stringify(newConfig));
+                    alert('บันทึกในเครื่องเรียบร้อยแล้ว (โหมดออฟไลน์)');
+                }
+            };
+
+            const handleAdminAccess = () => {
+                setShowAdmin(true);
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans pb-24 text-slate-800">
+                    <div className="max-w-md mx-auto min-h-screen relative bg-white sm:shadow-xl sm:my-4 sm:rounded-[30px] sm:min-h-[calc(100vh-2rem)] overflow-hidden">
+                        
+                        {/* Header */}
+                        <div className="h-16 bg-white/95 backdrop-blur-sm w-full absolute top-0 z-30 flex justify-between items-center px-5 shadow-sm border-b border-slate-50">
+                            <div className="flex items-center gap-2">
+                                {activeTab !== 'home' && (
+                                    <img src={config.logoUrl} alt="Logo" className="h-10 w-auto object-contain" onError={(e) => e.target.style.display = 'none'} />
+                                )}
+                                {activeTab !== 'home' && config.logoUrl === DEFAULT_CONFIG.logoUrl && (
+                                     <span className="font-bold text-slate-700">SUNNY</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {isFirebaseReady ? 
+                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Online"></span> : 
+                                    <span className="w-2 h-2 rounded-full bg-gray-300" title="Offline"></span>
+                                }
+                            </div>
+                        </div>
+
+                        {activeTab === 'home' && <HomePage setActiveTab={setActiveTab} config={config} />}
+                        {activeTab === 'stock' && <StockPage />}
+                        {activeTab === 'calculator' && <CalculatorPage config={config} />}
+
+                        {/* Bottom Navigation */}
+                        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] bg-white/90 backdrop-blur-lg shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl p-2 flex justify-around items-center border border-gray-100 z-50">
+                           <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Icons.Home size={26} />} label="หน้าหลัก" />
+                           <NavButton active={activeTab === 'stock'} onClick={() => setActiveTab('stock')} icon={<Icons.CheckSquare size={26} />} label="เช็คสต็อก" />
+                           <NavButton active={activeTab === 'calculator'} onClick={() => setActiveTab('calculator')} icon={<Icons.Calculator size={26} />} label="คำนวณราคา" />
+                           <NavButton active={showAdmin} onClick={handleAdminAccess} icon={<Icons.Settings size={26} />} label="ตั้งค่า" />
+                        </div>
+
+                        {/* Admin Modal */}
+                        {showAdmin && (
+                            <AdminModal 
+                                isOpen={showAdmin} 
+                                onClose={() => setShowAdmin(false)} 
+                                isLoggedIn={isAdminLoggedIn} 
+                                setLoggedIn={setIsAdminLoggedIn}
+                                config={config}
+                                onSave={saveConfig}
+                            />
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const NavButton = ({ active, onClick, icon, label }) => (
+            <button 
+                onClick={onClick}
+                className={`flex flex-col items-center p-2 rounded-xl transition-all duration-300 w-20 ${active ? 'text-blue-600 bg-blue-50 translate-y-[-4px] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+                {icon}
+                <span className="text-xs mt-1 font-bold">{label}</span>
+            </button>
+        );
+
+        // --- Pages ---
+        const HomePage = ({ setActiveTab, config }) => (
+            <div className="flex flex-col items-center justify-center h-full pt-32 p-6 text-center fade-in pb-32">
+                <img src={config.logoUrl} alt="Logo" className="h-40 w-auto object-contain mb-6 drop-shadow-md" onError={(e) => e.target.style.display = 'none'} />
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">ระบบร้านม่านม้วน</h2>
+                <p className="text-gray-500 mb-8 max-w-xs leading-relaxed text-base font-medium">
+                  จัดการสต็อก คำนวณราคา และออกใบเสนอราคาได้ง่ายๆ ในที่เดียว
+                </p>
+                <button 
+                  onClick={() => setActiveTab('calculator')}
+                  className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold text-lg shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center gap-2"
+                >
+                  เริ่มคำนวณราคา <Icons.Calculator size={20} />
+                </button>
+            </div>
+        );
+
+        const StockPage = () => (
+            <div className="flex flex-col items-center justify-center h-full pt-40 p-6 text-center fade-in pb-32">
+                <div className="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mb-6 ring-4 ring-white">
+                  <Icons.Box size={48} className="text-orange-500" />
+                </div>
+                <h1 className="text-xl font-bold text-gray-800 mb-2">เช็คสต็อกสินค้า</h1>
+                <p className="text-gray-400 text-base font-medium mb-6">ฟีเจอร์นี้กำลังอยู่ระหว่างการพัฒนา</p>
+                <div className="w-full max-w-[200px] bg-gray-100 rounded-full h-2">
+                  <div className="bg-orange-400 h-2 rounded-full w-[70%]"></div>
+                </div>
+                <p className="text-sm text-orange-400 mt-2 font-bold">Coming Soon (70%)</p>
+            </div>
+        );
+
+        const CalculatorPage = ({ config }) => {
+            const [calcMode, setCalcMode] = useState('external');
+            const [items, setItems] = useState([]);
+            const [showQuote, setShowQuote] = useState(false);
+            const [errorMsg, setErrorMsg] = useState('');
+            const [formData, setFormData] = useState({
+                width: '', height: '', price: '', qty: '1', side: 'ขวา', woodType: 'BASSWOOD'
+            });
+
+            useEffect(() => { if (errorMsg) setErrorMsg(''); }, [formData]);
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const calculateItem = () => {
+                const w_cm = parseFloat(formData.width);
+                const h_cm = parseFloat(formData.height);
+                const qty = parseInt(formData.qty);
+                
+                let price = 0;
+                if (calcMode === 'wooden') {
+                    price = formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice;
+                } else {
+                    price = parseFloat(formData.price);
+                }
+                
+                if (!w_cm || !h_cm || !price || !qty) {
+                    setErrorMsg('กรุณากรอกข้อมูลให้ครบถ้วน');
+                    return;
+                }
+
+                const w_m = w_cm / 100;
+                const h_m = h_cm / 100;
+                const baseFactor = calcMode === 'wooden' ? 1.2 : config.fabricFactor;
+                const fabricCostPerUnit = w_m * h_m * baseFactor * price; 
+                let result = {
+                    id: generateId(),
+                    w_cm, h_cm, w_m, h_m, unitPrice: price, qty, side: formData.side,
+                    type: calcMode
+                };
+
+                if (calcMode === 'external') {
+                    const hardwarePrice = config.hardwarePrice;
+                    const topRailPrice = config.topRailPrice * w_m;
+                    const bottomRailPrice = config.bottomRailPrice * w_m;
+                    const slingPrice = config.slingPrice * h_m;
+                    const totalPerUnit = fabricCostPerUnit + hardwarePrice + topRailPrice + bottomRailPrice + slingPrice;
+                    
+                    result = { ...result,
+                        typeName: 'ม่านม้วนภายนอก',
+                        totalPerUnit,
+                        grandTotal: totalPerUnit * qty,
+                        details: {
+                            fabricFormula: `${w_m.toFixed(2)} * ${h_m.toFixed(2)} * ${config.fabricFactor} * ${price} = ${fabricCostPerUnit.toFixed(2)}`,
+                            topRailFormula: `${config.topRailPrice} * ${w_m.toFixed(2)} = ${topRailPrice.toFixed(2)}`,
+                            bottomRailFormula: `${config.bottomRailPrice} * ${w_m.toFixed(2)} = ${bottomRailPrice.toFixed(2)}`,
+                            slingFormula: `${config.slingPrice} * ${h_m.toFixed(2)} = ${slingPrice.toFixed(2)}`,
+                            hardwarePrice,
+                            sumFormula: `${fabricCostPerUnit.toFixed(1)} + ${hardwarePrice} + ${topRailPrice.toFixed(0)} + ${bottomRailPrice.toFixed(0)} + ${slingPrice.toFixed(1)} = ${totalPerUnit.toFixed(1)}`
+                        }
+                    };
+                } else if (calcMode === 'internal') {
+                    result = { ...result,
+                        typeName: 'ม่านม้วนภายใน',
+                        totalPerUnit: fabricCostPerUnit,
+                        grandTotal: fabricCostPerUnit * qty,
+                        details: {
+                            mainFormula: `${w_m.toFixed(2)} * ${h_m.toFixed(2)} * ${config.fabricFactor} * ${price} = ${fabricCostPerUnit.toFixed(2)}`,
+                        }
+                    };
+                } else {
+                    // Wooden
+                    result = { ...result,
+                        typeName: `มู่ลี่ไม้ (${formData.woodType})`,
+                        woodType: formData.woodType,
+                        totalPerUnit: fabricCostPerUnit,
+                        grandTotal: fabricCostPerUnit * qty,
+                        details: {
+                            mainFormula: `${w_m.toFixed(2)} * ${h_m.toFixed(2)} * 1.2 * ${price} = ${fabricCostPerUnit.toFixed(2)}`,
+                        }
+                    };
+                }
+
+                setItems([...items, result]);
+                setFormData(prev => ({ ...prev, width: '', height: '' }));
+            };
+
+            return (
+                <div className="pt-24 px-5 pb-40 fade-in">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-slate-800">คำนวณราคา</h2>
+                    </div>
+                    
+                    <div className="bg-slate-100 p-1.5 rounded-xl flex text-sm font-bold mb-6 overflow-x-auto">
+                        <button onClick={() => setCalcMode('external')} className={`flex-1 py-2.5 px-3 rounded-lg transition-all whitespace-nowrap ${calcMode === 'external' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>ม่านภายนอก</button>
+                        <button onClick={() => setCalcMode('internal')} className={`flex-1 py-2.5 px-3 rounded-lg transition-all whitespace-nowrap ${calcMode === 'internal' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>ม่านภายใน</button>
+                        <button onClick={() => setCalcMode('wooden')} className={`flex-1 py-2.5 px-3 rounded-lg transition-all whitespace-nowrap ${calcMode === 'wooden' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>มู่ลี่ไม้</button>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6 relative overflow-hidden">
+                        <div className={`absolute top-0 left-0 w-1.5 h-full ${calcMode === 'external' ? 'bg-orange-400' : calcMode === 'wooden' ? 'bg-amber-600' : 'bg-blue-400'}`}></div>
+                        
+                        {calcMode === 'wooden' && (
+                            <div className="mb-5">
+                                <label className="text-sm font-bold text-slate-500 mb-2 block">ชนิดไม้</label>
+                                <div className="flex gap-3">
+                                    <label className={`flex-1 cursor-pointer border-2 rounded-xl py-3 px-2 flex items-center justify-center gap-1 transition-all ${formData.woodType === 'BASSWOOD' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
+                                        <input type="radio" name="woodType" value="BASSWOOD" checked={formData.woodType === 'BASSWOOD'} onChange={handleInputChange} className="hidden" />
+                                        <span className="text-sm font-bold">BASSWOOD</span>
+                                    </label>
+                                    <label className={`flex-1 cursor-pointer border-2 rounded-xl py-3 px-2 flex items-center justify-center gap-1 transition-all ${formData.woodType === 'FAUX WOOD' ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
+                                        <input type="radio" name="woodType" value="FAUX WOOD" checked={formData.woodType === 'FAUX WOOD'} onChange={handleInputChange} className="hidden" />
+                                        <span className="text-sm font-bold">FAUX WOOD</span>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-5 mb-5">
+                            <div>
+                                <label className="text-sm font-bold text-slate-500 mb-2 block">ความกว้าง (cm)</label>
+                                <input type="number" name="width" value={formData.width} onChange={handleInputChange} placeholder="0" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-bold text-slate-500 mb-2 block">ความสูง (cm)</label>
+                                <input type="number" name="height" value={formData.height} onChange={handleInputChange} placeholder="0" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-5 mb-5">
+                            {calcMode !== 'wooden' ? (
+                                <div>
+                                    <label className="text-sm font-bold text-slate-500 mb-2 block">ราคาผ้า (ตร.ล.)</label>
+                                    <input type="number" name="price" value={formData.price} onChange={handleInputChange} placeholder="฿" className="w-full bg-slate-50 rounded-xl p-3.5 font-bold text-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="text-sm font-bold text-slate-500 mb-2 block">ราคา (ตร.ล.)</label>
+                                    <div className="w-full bg-slate-100 rounded-xl p-3.5 font-bold text-lg text-slate-500 border border-slate-200">
+                                        {formatCurrency(formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice)}
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <label className="text-sm font-bold text-slate-500 mb-2 block">จำนวน</label>
+                                <div className="flex bg-slate-50 rounded-xl overflow-hidden h-[54px]">
+                                    <button onClick={() => setFormData(p => ({...p, qty: Math.max(1, parseInt(p.qty)-1 || 1).toString()}))} className="px-4 hover:bg-slate-200 text-slate-500 font-bold text-lg">-</button>
+                                    <input type="number" name="qty" value={formData.qty} onChange={handleInputChange} className="w-full bg-transparent text-center font-bold text-lg text-slate-700 focus:outline-none" />
+                                    <button onClick={() => setFormData(p => ({...p, qty: (parseInt(p.qty)+1 || 1).toString()}))} className="px-4 hover:bg-slate-200 text-slate-500 font-bold text-lg">+</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="text-sm font-bold text-slate-500 mb-2 block">ตำแหน่งโซ่/สลิง</label>
+                            <div className="flex gap-3">
+                                {['ซ้าย', 'ขวา'].map((s) => (
+                                    <label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
+                                        <input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" />
+                                        <span className="text-base font-bold">{s}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {errorMsg && (
+                            <div className="mb-4 p-3 bg-red-50 text-red-500 text-sm font-bold rounded-xl flex items-center gap-2 animate-pulse">
+                                <Icons.AlertCircle size={20} /> {errorMsg}
+                            </div>
+                        )}
+
+                        <button onClick={calculateItem} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-blue-200 active:scale-95 transition-all flex justify-center items-center gap-2">
+                            <Icons.Plus size={24} /> เพิ่มรายการ
+                        </button>
+                    </div>
+
+                    {items.length > 0 && (
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center px-2">
+                                <span className="text-sm font-bold text-slate-500">รายการทั้งหมด ({items.length})</span>
+                                <button onClick={() => setItems([])} className="text-red-400 text-sm font-bold flex items-center gap-1 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"><Icons.Trash2 size={16} /> ล้าง</button>
+                            </div>
+                            
+                            {items.map((item, idx) => (
+                                <div key={item.id} className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm relative group">
+                                    <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 p-1"><Icons.X size={20} /></button>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className={`w-2.5 h-2.5 rounded-full ${item.type === 'external' ? 'bg-orange-400' : item.type === 'wooden' ? 'bg-amber-600' : 'bg-blue-400'}`}></span>
+                                        <span className="text-sm font-bold text-slate-600">{item.typeName}</span>
+                                    </div>
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <div className="text-base font-bold text-slate-800">{item.w_cm} x {item.h_cm} cm</div>
+                                            <div className="text-sm font-medium text-slate-400 mt-1">จำนวน {item.qty} ชุด • ปรับ{item.side}</div>
+                                        </div>
+                                        <div className="text-xl font-bold text-blue-600">{formatCurrency(item.grandTotal)}</div>
+                                    </div>
+                                </div>
+                            ))}
+                            
+                            <button 
+                                onClick={() => setShowQuote(true)}
+                                className="w-full bg-slate-800 text-white px-6 py-4 rounded-xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg hover:bg-slate-900 active:scale-95 transition-all mt-6 mb-20"
+                            >
+                                <Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}
+                            </button>
+                        </div>
+                    )}
+
+                    {showQuote && <QuotationModal items={items} onClose={() => setShowQuote(false)} config={config} />}
+                </div>
+            );
+        };
+
+        const QuotationModal = ({ items, onClose, config }) => {
+            const [showMethod, setShowMethod] = useState(false);
+            const quoteRef = useRef(null);
+            const grandTotal = items.reduce((sum, item) => sum + item.grandTotal, 0);
+
+            const handleDownloadPDF = async () => {
+                if (!quoteRef.current || !window.html2canvas || !window.jspdf) {
+                    alert('กำลังโหลดไลบรารี กรุณารอสักครู่ แล้วลองใหม่');
+                    return;
+                }
+                try {
+                    const canvas = await window.html2canvas(quoteRef.current, { scale: 2, useCORS: true });
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                    pdf.save(`Quotation_${Date.now()}.pdf`);
+                } catch (e) {
+                    console.error(e);
+                    alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+                }
+            };
+
+            const handleSaveImage = async () => {
+                if (!quoteRef.current || !window.html2canvas) return;
+                try {
+                    const canvas = await window.html2canvas(quoteRef.current, { scale: 2, useCORS: true });
+                    const link = document.createElement('a');
+                    link.download = `Quotation_${Date.now()}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                } catch(e) {
+                    console.error(e);
+                    alert("เกิดข้อผิดพลาดในการบันทึกรูปภาพ");
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                        <div className="p-5 border-b flex justify-between items-center bg-slate-50">
+                            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Icons.FileText size={24} className="text-blue-500" /> ใบเสนอราคา</h3>
+                            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full"><Icons.X size={24} className="text-slate-400" /></button>
+                        </div>
+                        
+                        <div className="overflow-y-auto flex-1 bg-slate-100 p-4">
+                            <div ref={quoteRef} className="bg-white p-6 sm:p-8 rounded-xl shadow-sm printable-content">
+                                <div className="text-center border-b pb-6 mb-6">
+                                    <h1 className="text-3xl font-bold text-slate-800">ใบเสนอราคา</h1>
+                                    <p className="text-slate-500 text-base mt-1">วันที่ {new Date().toLocaleDateString('th-TH')}</p>
+                                </div>
+                                <div className="space-y-6">
+                                    {items.map((item, i) => (
+                                        <div key={item.id} className="border-b border-slate-100 pb-6 last:border-0">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <span className="font-bold text-lg text-slate-800 block">{i+1}. {item.typeName}</span>
+                                                    <span className="text-sm text-slate-500">ขนาด {item.w_cm}x{item.h_cm} cm | จำนวน {item.qty} ชุด</span>
+                                                </div>
+                                                <div className="font-bold text-lg text-slate-800">{formatCurrency(item.grandTotal)}</div>
+                                            </div>
+                                            {showMethod && (
+                                                <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-600 mt-2">
+                                                    <div className="font-bold text-blue-600 mb-2">วิธีคำนวณ</div>
+                                                    {item.type === 'external' ? (
+                                                        <ul className="space-y-1.5 list-disc list-inside opacity-90">
+                                                            <li>ผ้า: {item.details.fabricFormula}</li>
+                                                            <li>รางบน: {item.details.topRailFormula}</li>
+                                                            <li>รางล่าง: {item.details.bottomRailFormula}</li>
+                                                            <li>สลิง: {item.details.slingFormula}</li>
+                                                            <li>อุปกรณ์: {formatCurrency(item.details.hardwarePrice)}</li>
+                                                            <li className="font-bold text-slate-800 pt-1">รวมต่อชุด: {item.details.sumFormula}</li>
+                                                        </ul>
+                                                    ) : (
+                                                        <ul className="space-y-1.5 list-disc list-inside opacity-90">
+                                                            <li>{item.details.mainFormula} ต่อชุด</li>
+                                                        </ul>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-8 pt-6 border-t-2 border-slate-800 flex justify-between items-center">
+                                    <span className="text-xl font-bold text-slate-800">ยอดรวมสุทธิ</span>
+                                    <span className="text-3xl font-bold text-blue-600">{formatCurrency(grandTotal)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-5 bg-white border-t flex flex-col gap-4">
+                            <button onClick={() => setShowMethod(!showMethod)} className="w-full py-3 border rounded-xl text-base font-bold text-slate-500 flex items-center justify-center gap-2 hover:bg-slate-50">
+                                {showMethod ? <Icons.ChevronUp size={20} /> : <Icons.ChevronDown size={20} />} {showMethod ? 'ซ่อนรายละเอียด' : 'แสดงรายละเอียด'}
+                            </button>
+                            <div className="grid grid-cols-2 gap-4">
+                                <button onClick={handleDownloadPDF} className="bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base"><Icons.Download size={20} /> PDF</button>
+                                <button onClick={handleSaveImage} className="bg-indigo-500 hover:bg-indigo-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base"><Icons.Image size={20} /> รูปภาพ</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminModal = ({ isOpen, onClose, isLoggedIn, setLoggedIn, config, onSave }) => {
+            const [passcode, setPasscode] = useState('');
+            const [editConfig, setEditConfig] = useState(config);
+            const [msg, setMsg] = useState('');
+
+            const handleLogin = () => {
+                if (passcode === '1988') {
+                    setLoggedIn(true);
+                    setMsg('');
+                } else {
+                    setMsg('รหัสผ่านไม่ถูกต้อง');
+                }
+            };
+
+            const handleReset = () => {
+                if (confirm('ต้องการรีเซ็ตค่าทั้งหมดเป็นค่าเริ่มต้นใช่หรือไม่?')) {
+                    setEditConfig(DEFAULT_CONFIG);
+                }
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[70] flex items-center justify-center p-4 fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><Icons.X size={24} /></button>
+                        
+                        {!isLoggedIn ? (
+                            <div className="p-8 text-center">
+                                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Icons.Lock size={32} className="text-slate-500" />
+                                </div>
+                                <h2 className="text-xl font-bold text-slate-800 mb-6">เข้าสู่ระบบหลังบ้าน</h2>
+                                <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="กรอกรหัสผ่าน" className="w-full bg-slate-100 p-3 rounded-xl text-center text-lg font-bold mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                {msg && <p className="text-red-500 text-sm mb-4">{msg}</p>}
+                                <button onClick={handleLogin} className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 transition-colors">เข้าสู่ระบบ</button>
+                            </div>
+                        ) : (
+                            <div className="p-6">
+                                <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><Icons.Settings size={24} /></div>
+                                    <div><h2 className="text-lg font-bold text-slate-800">ตั้งค่าระบบ</h2><p className="text-sm text-slate-400">แก้ไขราคากลาง</p></div>
+                                </div>
+                                
+                                <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                                    <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mt-2">ตั้งค่าทั่วไป</h3>
+                                    <AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} />
+
+                                    <h3 className="text-sm font-bold text-blue-600 border-b pb-2 mt-2">ม่านม้วน (External)</h3>
+                                    <AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" />
+                                    <AdminInput label="ราคารางบน" value={editConfig.topRailPrice} onChange={(v) => setEditConfig({...editConfig, topRailPrice: v})} unit="บาท" />
+                                    <AdminInput label="ราคารางล่าง" value={editConfig.bottomRailPrice} onChange={(v) => setEditConfig({...editConfig, bottomRailPrice: v})} unit="บาท" />
+                                    <AdminInput label="ราคาสลิงข้าง" value={editConfig.slingPrice} onChange={(v) => setEditConfig({...editConfig, slingPrice: v})} unit="บาท" />
+                                    <AdminInput label="ตัวคูณสูตรผ้า" value={editConfig.fabricFactor} onChange={(v) => setEditConfig({...editConfig, fabricFactor: v})} unit="เท่า" step={0.1} />
+
+                                    <h3 className="text-sm font-bold text-amber-600 border-b pb-2 mt-4">มู่ลี่ไม้ (Wooden)</h3>
+                                    <AdminInput label="ราคา BASSWOOD" value={editConfig.basswoodPrice} onChange={(v) => setEditConfig({...editConfig, basswoodPrice: v})} unit="บาท" />
+                                    <AdminInput label="ราคา FAUX WOOD" value={editConfig.fauxwoodPrice} onChange={(v) => setEditConfig({...editConfig, fauxwoodPrice: v})} unit="บาท" />
+                                </div>
+
+                                <div className="flex gap-3 mt-6 pt-4 border-t">
+                                    <button onClick={handleReset} className="p-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><Icons.RotateCcw size={20} /></button>
+                                    <button onClick={() => onSave(editConfig)} className="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2"><Icons.Save size={18} /> บันทึกออนไลน์</button>
+                                </div>
+                                <button onClick={() => setLoggedIn(false)} className="w-full mt-3 text-xs text-red-400 hover:text-red-500 flex items-center justify-center gap-1"><Icons.LogOut size={12} /> ออกจากระบบ</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminInput = ({ label, value, onChange, unit, step = 1 }) => (
+            <div>
+                <label className="text-sm font-bold text-slate-500 mb-1.5 block">{label}</label>
+                <div className="relative">
+                    <input type="number" value={value} onChange={(e) => onChange(parseFloat(e.target.value))} step={step} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 font-bold text-slate-700 focus:outline-none focus:border-blue-500 text-base" />
+                    <span className="absolute right-3 top-3 text-sm font-bold text-slate-400">{unit}</span>
+                </div>
+            </div>
+        );
+
+        const AdminTextInput = ({ label, value, onChange }) => (
+            <div>
+                <label className="text-sm font-bold text-slate-500 mb-1.5 block">{label}</label>
+                <div className="relative">
+                    <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 font-bold text-slate-700 focus:outline-none focus:border-blue-500 text-base" />
+                </div>
+            </div>
+        );
+
+        // Render App
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
