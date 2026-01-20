@@ -328,8 +328,8 @@
             // สร้างรายการโหมดการคำนวณตามการตั้งค่า
             const availableModes = useMemo(() => {
                 const modes = [];
-                if (config.showExternal) modes.push({ id: 'external', label: 'ม่านภายนอก' });
-                if (config.showInternal) modes.push({ id: 'internal', label: 'ม่านภายใน' });
+                if (config.showExternal) modes.push({ id: 'external', label: 'ม่านม้วนภายนอก' });
+                if (config.showInternal) modes.push({ id: 'internal', label: 'ม่านม้วนภายใน' });
                 if (config.showWooden) modes.push({ id: 'wooden', label: 'มู่ลี่ไม้' });
                 return modes;
             }, [config]);
@@ -721,8 +721,8 @@
 
                                     <h3 className="text-sm font-bold text-gray-700 border-b pb-2 mt-4">เมนูคำนวณ (เปิด/ปิด)</h3>
                                     <div className="space-y-2 mt-2">
-                                        <AdminToggle label="ม่านภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} />
-                                        <AdminToggle label="ม่านภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} />
+                                        <AdminToggle label="ม่านม้วนภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} />
+                                        <AdminToggle label="ม่านม้วนภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} />
                                         <AdminToggle label="มู่ลี่ไม้" value={editConfig.showWooden} onChange={v => setEditConfig({...editConfig, showWooden: v})} />
                                     </div>
 
