@@ -191,7 +191,7 @@
                     await auth.signInWithPopup(provider);
                 } catch (error) {
                     console.error(error);
-                    alert("เข้าสู่ระบบล้มเหลว: " + error.message);
+                    alert("เข้าสู่ระบบล้มเหลว: " + error.message + "\n\n*อย่าลืมเพิ่มโดเมนเว็บนี้ใน Authorized Domains ของ Firebase Console*");
                 }
             };
 
@@ -269,8 +269,8 @@
                                         <img src={user.photoURL} className="w-9 h-9 rounded-full border-2 border-red-100" alt="User" />
                                     </button>
                                 ) : (
-                                    <button onClick={handleLogin} className="flex items-center gap-1 text-xs font-bold bg-red-50 text-red-600 px-3 py-1.5 rounded-full hover:bg-red-100 border border-red-100">
-                                        <Icons.Google size={14} /> เข้าสู่ระบบ
+                                    <button onClick={handleLogin} className="flex items-center gap-1 text-xs font-bold bg-gradient-to-r from-red-600 to-red-500 text-white px-3 py-1.5 rounded-full hover:shadow-md transition-all active:scale-95 shadow-sm">
+                                        <Icons.Google size={14} className="text-white" /> <span className="pt-0.5">เข้าสู่ระบบ</span>
                                     </button>
                                 )}
                             </div>
