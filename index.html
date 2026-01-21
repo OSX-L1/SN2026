@@ -33,31 +33,27 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
     <style>
-        /* SF Pro Display / Apple Style Font Stack */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
         body { 
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f5f5f7; /* Apple's light gray background */
+            background-color: #f5f5f7;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             overscroll-behavior: none;
             color: #1d1d1f;
         }
 
-        /* Smooth Animations */
         .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
         .scale-in { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
         
-        /* Glassmorphism Utilities */
         .glass {
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(20px);
@@ -74,19 +70,33 @@
 
         .printable-content { background: white; color: black; }
 
-        /* Apple-like Input Focus */
         .input-apple:focus {
             outline: none;
-            box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15);
-            border-color: #ef4444;
+            box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+            border-color: #86868b;
         }
 
-        /* Bento Card Hover */
         .bento-card {
             transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .bento-card:active {
             transform: scale(0.95);
+        }
+        
+        /* A4 Paper */
+        .a4-paper {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            margin: 0 auto;
+            padding: 15mm;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            color: black;
+            position: relative;
+            box-sizing: border-box;
+        }
+        @media (max-width: 768px) {
+            .a4-paper { width: 100%; min-height: auto; padding: 10mm 5mm; font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -96,65 +106,60 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- PWA Manifest ---
-        const manifestData = {
-            "name": "SUNNY Blind System",
-            "short_name": "SUNNY",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#f5f5f7",
-            "theme_color": "#ffffff",
-            "orientation": "portrait",
-            "icons": [
-                { "src": "https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png", "sizes": "192x192", "type": "image/png" },
-                { "src": "https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png", "sizes": "512x512", "type": "image/png" }
-            ]
+        // --- THEME DEFINITIONS ---
+        const THEMES = {
+            default: {
+                id: 'default',
+                name: 'มาตรฐาน (Sunny Red)',
+                bgApp: 'bg-[#f8fafc]',
+                textMain: 'text-slate-800',
+                textSub: 'text-slate-500',
+                primary: 'text-red-600',
+                icon: 'text-red-500',
+                btnPrimary: 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white shadow-red-200',
+                btnSecondary: 'bg-white text-slate-700 border-red-100 hover:bg-red-50',
+                bgSoft: 'bg-red-50',
+                border: 'border-red-100',
+                activeTab: 'text-red-600 bg-red-50 shadow-md -translate-y-2',
+                inactiveTab: 'text-gray-400 hover:text-red-500 hover:bg-red-50/50 hover:-translate-y-1',
+                cardBorder: 'border-white hover:border-red-200',
+                inputRing: 'focus:ring-red-100',
+                highlight: 'text-red-600',
+                logoFilter: 'none'
+            },
+            apple: {
+                id: 'apple',
+                name: 'Apple Premium (Silver/Bronze)',
+                bgApp: 'bg-[#F5F5F7]', // Apple Light Gray
+                textMain: 'text-[#1D1D1F]', // Apple Dark Gray
+                textSub: 'text-[#86868b]', // Apple Subtext
+                primary: 'text-[#1D1D1F]', 
+                icon: 'text-[#86868b]',
+                btnPrimary: 'bg-[#1D1D1F] hover:bg-[#333333] text-white shadow-gray-300', // Black Matte
+                btnSecondary: 'bg-white text-[#1D1D1F] border-gray-200 hover:bg-gray-50',
+                bgSoft: 'bg-[#E5E5EA]',
+                border: 'border-gray-200',
+                activeTab: 'text-[#1D1D1F] bg-white shadow-lg -translate-y-2 ring-1 ring-black/5',
+                inactiveTab: 'text-[#86868b] hover:text-[#1D1D1F] hover:bg-white/50 hover:-translate-y-1',
+                cardBorder: 'border-white/60 hover:border-[#BF9B30]/30', // Bronze hint on hover
+                inputRing: 'focus:ring-gray-200',
+                highlight: 'text-[#9A8453]', // Bronze/Gold text
+                logoFilter: 'grayscale(20%)'
+            }
         };
+
+        // ... (Manifest code remains same) ...
+        const manifestData = { "name": "SUNNY Blind System", "short_name": "SUNNY", "start_url": ".", "display": "standalone", "background_color": "#f5f5f7", "theme_color": "#ffffff", "orientation": "portrait", "icons": [{ "src": "https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png", "sizes": "192x192", "type": "image/png" }, { "src": "https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png", "sizes": "512x512", "type": "image/png" }] };
         const manifestBlob = new Blob([JSON.stringify(manifestData)], {type: 'application/manifest+json'});
         document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(manifestBlob));
 
-        // ==========================================
-        // Firebase Config
-        // ==========================================
-        const YOUR_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyCsi2LJcpVAiFBXnmc5XgiIt3UlNFeo2lI",
-            authDomain: "sn2026-9e19e.firebaseapp.com",
-            projectId: "sn2026-9e19e",
-            storageBucket: "sn2026-9e19e.firebasestorage.app",
-            messagingSenderId: "45923511775",
-            appId: "1:45923511775:web:04eca2038d60bfa393a86a",
-            measurementId: "G-PZ1GJM6VHC"
-        };
-
-        let db = null;
-        let auth = null;
-        let appId = 'sunny-blind-system';
-
-        try {
-            let finalConfig = YOUR_FIREBASE_CONFIG;
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                try {
-                    const envConfig = JSON.parse(__firebase_config);
-                    if (Object.keys(envConfig).length > 0) finalConfig = envConfig;
-                } catch(e){}
-            }
-            if (typeof __app_id !== 'undefined') appId = __app_id;
-
-            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-                firebase.initializeApp(finalConfig);
-                auth = firebase.auth();
-                db = firebase.firestore();
-            } else if (typeof firebase !== 'undefined') {
-                auth = firebase.auth();
-                db = firebase.firestore();
-            }
-        } catch (e) { console.error("Firebase Init Error:", e); }
+        // ... (Firebase Config & Init remains same) ...
+        const YOUR_FIREBASE_CONFIG = { apiKey: "AIzaSyCsi2LJcpVAiFBXnmc5XgiIt3UlNFeo2lI", authDomain: "sn2026-9e19e.firebaseapp.com", projectId: "sn2026-9e19e", storageBucket: "sn2026-9e19e.firebasestorage.app", messagingSenderId: "45923511775", appId: "1:45923511775:web:04eca2038d60bfa393a86a", measurementId: "G-PZ1GJM6VHC" };
+        let db = null; let auth = null; let appId = 'sunny-blind-system';
+        try { let finalConfig = YOUR_FIREBASE_CONFIG; if (typeof __firebase_config !== 'undefined' && __firebase_config) { try { const envConfig = JSON.parse(__firebase_config); if (Object.keys(envConfig).length > 0) finalConfig = envConfig; } catch(e){} } if (typeof __app_id !== 'undefined') appId = __app_id; if (typeof firebase !== 'undefined') { if (!firebase.apps.length) firebase.initializeApp(finalConfig); auth = firebase.auth(); db = firebase.firestore(); } } catch (e) { console.error(e); }
 
         // --- Icons ---
-        const Icon = ({ path, size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
-        );
-        
+        const Icon = ({ path, size = 24, className = "" }) => ( <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg> );
         const Icons = {
             Home: (p) => <Icon {...p} path={<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></>} />,
             Calculator: (p) => <Icon {...p} path={<><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></>} />,
@@ -176,16 +181,7 @@
             RotateCcw: (p) => <Icon {...p} path={<><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></>} />,
             Smartphone: (p) => <Icon {...p} path={<><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></>} />,
             Share: (p) => <Icon {...p} path={<><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></>} />,
-            // Use an inline SVG for the full-color Google Logo
-            Google: ({ size = 24, className = "" }) => (
-                <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 48 48" className={className}>
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                    <path fill="none" d="M0 0h48v48H0z"/>
-                </svg>
-            ),
+            Google: ({ size = 24, className = "" }) => ( <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 48 48" className={className}><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg> ),
             User: (p) => <Icon {...p} path={<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></>} />,
             Sun: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></>} />,
             Blinds: (p) => <Icon {...p} path={<><path d="M3 3h18"></path><path d="M20 7H4"></path><path d="M20 11H4"></path><path d="M20 15H4"></path><path d="M4 19h16"></path><path d="M8 3v16"></path><path d="M16 3v16"></path></>} />,
@@ -211,6 +207,7 @@
             showExternal: true,
             showInternal: true,
             showWooden: true,
+            theme: 'default' // Default theme setting
         };
 
         const App = () => {
@@ -220,10 +217,21 @@
             const [showProfile, setShowProfile] = useState(false);
             const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
             const [user, setUser] = useState(null);
-            const [userProfile, setUserProfile] = useState(null); // User's custom profile data
+            const [userProfile, setUserProfile] = useState(null); 
             const [isFirebaseReady, setIsFirebaseReady] = useState(false);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
-            const [items, setItems] = useState([]); 
+            const [items, setItems] = useState([]);
+
+            // Theme Derived Constants
+            const currentTheme = THEMES[config.theme] || THEMES.default;
+            
+            // Effect to update body background color based on theme
+            useEffect(() => {
+                // Tailwind classes on body don't update automatically in this setup, 
+                // but we can set style directly or toggle class on body if needed.
+                // For now, the main container handles the background color appearance.
+                document.body.style.backgroundColor = config.theme === 'apple' ? '#F5F5F7' : '#f8fafc';
+            }, [config.theme]);
 
             useEffect(() => {
                 window.addEventListener('beforeinstallprompt', (e) => {
@@ -242,7 +250,6 @@
                 }
             };
 
-            // Auth Functions
             const handleLogin = async () => {
                 if (!auth) return alert("ระบบยังไม่พร้อมใช้งาน");
                 try {
@@ -274,14 +281,12 @@
                     setUser(currentUser);
                     if (currentUser) {
                         setIsFirebaseReady(true);
-                        // Config Listener
                         const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
                         configRef.onSnapshot((docSnap) => {
                             if (docSnap.exists) setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() });
                             else configRef.set(DEFAULT_CONFIG).catch(console.error);
                         }, () => loadLocal());
 
-                        // Profile Listener
                         const profileRef = db.doc(`artifacts/${appId}/users/${currentUser.uid}/profile/info`);
                         profileRef.onSnapshot(doc => {
                             setUserProfile(doc.exists ? doc.data() : null);
@@ -328,14 +333,14 @@
             };
 
             return (
-                <div className="min-h-screen pb-24 text-slate-800">
-                    <div className="max-w-md mx-auto min-h-screen relative bg-[#f5f5f7] sm:shadow-2xl sm:my-4 sm:rounded-[40px] sm:min-h-[calc(100vh-2rem)] overflow-hidden border border-white/50">
+                <div className={`min-h-screen pb-24 ${currentTheme.textMain}`}>
+                    <div className={`max-w-md mx-auto min-h-screen relative ${currentTheme.bgApp} sm:shadow-2xl sm:my-4 sm:rounded-[40px] sm:min-h-[calc(100vh-2rem)] overflow-hidden border border-white/50 transition-colors duration-500`}>
                         
-                        {/* Header Glassmorphism */}
-                        <div className="h-16 glass w-full absolute top-0 z-30 flex justify-between items-center px-6 sticky">
+                        {/* Header */}
+                        <div className={`h-16 w-full absolute top-0 z-30 flex justify-between items-center px-6 sticky ${config.theme === 'apple' ? 'glass' : 'bg-white/95 backdrop-blur-sm shadow-sm'}`}>
                             <div className="flex items-center gap-2">
                                 {activeTab !== 'home' && (
-                                    <img src={config.logoUrl} alt="Logo" className="h-14 w-auto object-contain drop-shadow-sm fade-in" onError={(e) => e.target.style.display = 'none'} />
+                                    <img src={config.logoUrl} alt="Logo" className="h-14 w-auto object-contain drop-shadow-sm fade-in" style={{filter: currentTheme.logoFilter}} onError={(e) => e.target.style.display = 'none'} />
                                 )}
                             </div>
                             <div className="flex items-center gap-3">
@@ -344,29 +349,29 @@
                                         <img src={userProfile?.photoURL || user.photoURL} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" alt="User" />
                                     </button>
                                 ) : (
-                                    <button onClick={handleLogin} className="flex items-center gap-2 text-sm font-bold bg-white text-slate-800 px-5 py-2.5 rounded-full shadow-md hover:shadow-lg transition-all active:scale-95 border border-slate-200">
-                                        <Icons.Google size={28} className="text-red-600" /> <span>เข้าสู่ระบบด้วย Gmail</span>
+                                    <button onClick={handleLogin} className={`flex items-center gap-2 text-sm font-bold bg-white px-5 py-2.5 rounded-full shadow-md hover:shadow-lg transition-all active:scale-95 border ${currentTheme.border}`}>
+                                        <Icons.Google size={28} /> <span className={currentTheme.textMain}>เข้าสู่ระบบด้วย Gmail</span>
                                     </button>
                                 )}
                             </div>
                         </div>
 
-                        {activeTab === 'home' && <HomePage setActiveTab={setActiveTab} config={config} onInstall={handleInstallApp} />}
-                        {activeTab === 'stock' && <StockPage />}
-                        {activeTab === 'calculator' && <CalculatorPage config={config} items={items} setItems={setItems} user={user} onLogin={handleLogin} userProfile={userProfile} />}
+                        {activeTab === 'home' && <HomePage setActiveTab={setActiveTab} config={config} onInstall={handleInstallApp} theme={currentTheme} />}
+                        {activeTab === 'stock' && <StockPage theme={currentTheme} />}
+                        {activeTab === 'calculator' && <CalculatorPage config={config} items={items} setItems={setItems} user={user} onLogin={handleLogin} userProfile={userProfile} theme={currentTheme} />}
 
                         {/* Bottom Navigation */}
-                        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[380px] glass-panel rounded-3xl p-2 flex justify-around items-center z-50">
-                           <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Icons.Home size={24} />} label="หน้าหลัก" />
-                           <NavButton active={activeTab === 'stock'} onClick={() => setActiveTab('stock')} icon={<Icons.Box size={24} />} label="สต็อก" />
-                           <NavButton active={activeTab === 'calculator'} onClick={() => setActiveTab('calculator')} icon={<Icons.Calculator size={24} />} label="คำนวณ" />
-                           <NavButton active={showAdmin} onClick={() => setShowAdmin(true)} icon={<Icons.Settings size={24} />} label="ตั้งค่า" />
+                        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[380px] rounded-3xl p-2 flex justify-around items-center z-50 ${config.theme === 'apple' ? 'glass-panel' : 'bg-white/90 backdrop-blur-lg shadow-lg border border-gray-100'}`}>
+                           <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Icons.Home size={24} />} label="หน้าหลัก" theme={currentTheme} />
+                           <NavButton active={activeTab === 'stock'} onClick={() => setActiveTab('stock')} icon={<Icons.Box size={24} />} label="สต็อก" theme={currentTheme} />
+                           <NavButton active={activeTab === 'calculator'} onClick={() => setActiveTab('calculator')} icon={<Icons.Calculator size={24} />} label="คำนวณ" theme={currentTheme} />
+                           <NavButton active={showAdmin} onClick={() => setShowAdmin(true)} icon={<Icons.Settings size={24} />} label="ตั้งค่า" theme={currentTheme} />
                         </div>
 
                         {showAdmin && (
                             <AdminModal 
                                 isOpen={showAdmin} onClose={() => setShowAdmin(false)} isLoggedIn={isAdminLoggedIn} 
-                                setLoggedIn={setIsAdminLoggedIn} config={config} onSave={saveConfig}
+                                setLoggedIn={setIsAdminLoggedIn} config={config} onSave={saveConfig} theme={currentTheme}
                             />
                         )}
 
@@ -378,6 +383,7 @@
                                 onLogout={handleLogout} 
                                 onLoad={loadQuotation} 
                                 onSaveProfile={saveUserProfile}
+                                theme={currentTheme}
                             />
                         )}
                     </div>
@@ -385,14 +391,11 @@
             );
         };
 
-        const NavButton = ({ active, onClick, icon, label }) => (
+        const NavButton = ({ active, onClick, icon, label, theme }) => (
             <button 
                 onClick={onClick}
                 className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 group
-                ${active 
-                    ? 'bg-white shadow-lg text-red-600 -translate-y-3 scale-110 ring-1 ring-red-50' 
-                    : 'text-slate-400 hover:text-slate-600 hover:-translate-y-1'
-                }`}
+                ${active ? theme.activeTab : theme.inactiveTab}`}
             >
                 {icon}
                 <span className={`text-[9px] font-medium mt-0.5 transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>{label}</span>
@@ -400,44 +403,43 @@
         );
 
         // --- Pages ---
-        const HomePage = ({ setActiveTab, config, onInstall }) => (
+        const HomePage = ({ setActiveTab, config, onInstall, theme }) => (
             <div className="flex flex-col items-center justify-center h-full pt-32 p-8 text-center fade-in pb-32">
                 <div className="relative mb-8 group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-red-600 to-orange-600 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
                     <img src={config.logoUrl} alt="Logo" className="relative h-48 w-auto object-contain drop-shadow-xl transform transition-transform duration-500 hover:scale-105" onError={(e) => e.target.style.display = 'none'} />
                 </div>
                 
-                <h2 className="text-3xl font-bold text-slate-800 mb-3 tracking-tight">Sunny Blind System</h2>
-                <p className="text-slate-500 mb-10 max-w-xs leading-relaxed text-sm font-medium">
+                <h2 className={`text-3xl font-bold mb-3 tracking-tight ${theme.textMain}`}>Sunny Blind System</h2>
+                <p className={`${theme.textSub} mb-10 max-w-xs leading-relaxed text-sm font-medium`}>
                   ระบบจัดการร้านม่านครบวงจร<br/>คำนวณราคา เช็คสต็อก ออกใบเสนอราคา
                 </p>
                 
                 <div className="flex flex-col gap-4 w-full max-w-xs">
                     <button 
                       onClick={() => setActiveTab('calculator')}
-                      className="bg-gradient-to-r from-red-600 to-red-500 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-red-500/30 active:scale-95 transition-all flex justify-center items-center gap-3 hover:-translate-y-1"
+                      className={`${theme.btnPrimary} px-8 py-4 rounded-2xl font-bold text-lg active:scale-95 transition-all flex justify-center items-center gap-3 hover:-translate-y-1 shadow-lg`}
                     >
                       <Icons.Calculator size={22} /> เริ่มคำนวณราคา
                     </button>
                     
                     <button 
                       onClick={onInstall}
-                      className="bg-white text-slate-700 px-8 py-4 rounded-2xl font-bold text-lg shadow-md border border-white/50 active:scale-95 transition-all flex justify-center items-center gap-3 hover:-translate-y-1 hover:shadow-lg"
+                      className={`${theme.btnSecondary} px-8 py-4 rounded-2xl font-bold text-lg shadow-md active:scale-95 transition-all flex justify-center items-center gap-3 hover:-translate-y-1`}
                     >
-                      <Icons.Smartphone size={22} className="text-slate-400" /> ติดตั้งแอปพลิเคชัน
+                      <Icons.Smartphone size={22} className={theme.icon} /> ติดตั้งแอปพลิเคชัน
                     </button>
                 </div>
             </div>
         );
 
-        const StockPage = () => (
+        const StockPage = ({ theme }) => (
             <div className="flex flex-col items-center justify-center h-full pt-40 p-8 text-center fade-in pb-32">
                 <div className="w-32 h-32 bg-white rounded-[2rem] flex items-center justify-center mb-8 shadow-xl shadow-orange-500/10 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-transparent opacity-50"></div>
                     <Icons.Box size={56} className="text-orange-500 relative z-10" />
                 </div>
-                <h1 className="text-2xl font-bold text-slate-800 mb-2">เช็คสต็อกสินค้า</h1>
-                <p className="text-slate-400 text-base font-medium mb-8">ฟีเจอร์นี้กำลังอยู่ระหว่างการพัฒนา</p>
+                <h1 className={`text-2xl font-bold mb-2 ${theme.textMain}`}>เช็คสต็อกสินค้า</h1>
+                <p className={`${theme.textSub} text-base font-medium mb-8`}>ฟีเจอร์นี้กำลังอยู่ระหว่างการพัฒนา</p>
                 <div className="w-full max-w-[240px] bg-slate-200 rounded-full h-2 overflow-hidden">
                   <div className="bg-gradient-to-r from-orange-400 to-orange-500 h-2 rounded-full w-[70%] shadow-[0_0_10px_rgba(251,146,60,0.5)]"></div>
                 </div>
@@ -445,7 +447,7 @@
             </div>
         );
 
-        const ProfileModal = ({ user, userProfile, onClose, onLogout, onLoad, onSaveProfile }) => {
+        const ProfileModal = ({ user, userProfile, onClose, onLogout, onLoad, onSaveProfile, theme }) => {
             const [savedQuotes, setSavedQuotes] = useState([]);
             const [loading, setLoading] = useState(true);
             const [isEditing, setIsEditing] = useState(false);
@@ -457,9 +459,11 @@
                 photoURL: userProfile?.photoURL || user.photoURL
             });
 
+            // ... (useEffect for data fetching, same logic) ...
             useEffect(() => {
                 if (!db) return;
-                const q = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('quotations'); 
+                // Using hardcoded appId here as it's defined in outer scope, ensure it's available
+                const q = db.collection('artifacts').doc('sunny-blind-system').collection('users').doc(user.uid).collection('quotations'); 
                 const unsub = q.onSnapshot(snap => {
                     const data = snap.docs.map(d => ({id: d.id, ...d.data()}));
                     data.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -473,7 +477,7 @@
                 e.stopPropagation();
                 if(!confirm("ต้องการลบรายการนี้?")) return;
                 try {
-                    await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('quotations').doc(id).delete();
+                    await db.collection('artifacts').doc('sunny-blind-system').collection('users').doc(user.uid).collection('quotations').doc(id).delete();
                 } catch(e) { alert(e.message); }
             };
 
@@ -484,17 +488,16 @@
 
             return (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex items-end sm:items-center justify-center p-4 fade-in">
-                    <div className="bg-[#f5f5f7] rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh] slide-up">
-                        <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-white/50 backdrop-blur-md">
-                            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Icons.User size={24} className="text-red-500" /> โปรไฟล์ของฉัน</h3>
-                            <button onClick={onClose} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"><Icons.X size={20} className="text-slate-500" /></button>
+                    <div className={`${theme.bgApp} rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh] slide-up`}>
+                        <div className={`p-5 border-b ${theme.border} flex justify-between items-center bg-white/50 backdrop-blur-md`}>
+                            <h3 className={`font-bold text-lg flex items-center gap-2 ${theme.textMain}`}><Icons.User size={24} className={theme.icon} /> โปรไฟล์ของฉัน</h3>
+                            <button onClick={onClose} className="p-2 bg-white/50 rounded-full hover:bg-white transition-colors"><Icons.X size={20} className={theme.textSub} /></button>
                         </div>
                         
                         <div className="p-6 flex flex-col items-center bg-white relative">
-                             {/* Profile Header */}
                             <div className="absolute top-4 right-4 z-20">
-                                <button onClick={() => setIsEditing(!isEditing)} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors">
-                                    {isEditing ? <Icons.X size={18} /> : <Icons.Settings size={18} />}
+                                <button onClick={() => setIsEditing(!isEditing)} className={`p-2 rounded-full ${theme.bgSoft} ${theme.textSub} hover:${theme.primary} transition-colors`}>
+                                    {isEditing ? <Icons.X size={18} /> : <Icons.Edit size={18} />}
                                 </button>
                             </div>
 
@@ -502,44 +505,44 @@
                             
                             {!isEditing ? (
                                 <>
-                                    <h2 className="text-xl font-bold text-slate-800">{userProfile?.displayName || user.displayName}</h2>
-                                    {userProfile?.shopName && <p className="text-sm font-bold text-red-600 mt-1">{userProfile.shopName}</p>}
-                                    <p className="text-sm text-slate-500 mt-1">{user.email}</p>
-                                    <button onClick={onLogout} className="mt-4 text-xs font-bold text-red-600 bg-red-50 px-5 py-2 rounded-full hover:bg-red-100 flex items-center gap-2 transition-colors">
+                                    <h2 className={`text-xl font-bold ${theme.textMain}`}>{userProfile?.displayName || user.displayName}</h2>
+                                    {userProfile?.shopName && <p className={`text-sm font-bold mt-1 ${theme.highlight}`}>{userProfile.shopName}</p>}
+                                    <p className={`text-sm mt-1 ${theme.textSub}`}>{user.email}</p>
+                                    <button onClick={onLogout} className={`mt-6 text-xs font-bold px-5 py-2.5 rounded-full flex items-center gap-2 transition-colors ${theme.bgSoft} ${theme.primary}`}>
                                         <Icons.LogOut size={16} /> ออกจากระบบ
                                     </button>
                                 </>
                             ) : (
                                 <div className="w-full space-y-3 mt-2">
-                                    <AdminTextInput label="ชื่อที่แสดง" value={editData.displayName} onChange={v => setEditData({...editData, displayName: v})} />
-                                    <AdminTextInput label="ชื่อร้านค้า (แสดงบนใบเสนอราคา)" value={editData.shopName} onChange={v => setEditData({...editData, shopName: v})} />
-                                    <AdminTextInput label="ที่อยู่ร้าน" value={editData.address} onChange={v => setEditData({...editData, address: v})} />
-                                    <AdminTextInput label="เบอร์โทรศัพท์" value={editData.phone} onChange={v => setEditData({...editData, phone: v})} />
-                                    <AdminTextInput label="URL รูปโปรไฟล์" value={editData.photoURL} onChange={v => setEditData({...editData, photoURL: v})} />
-                                    <button onClick={handleSave} className="w-full bg-red-600 text-white font-bold py-2 rounded-xl mt-2 hover:bg-red-700">บันทึกข้อมูล</button>
+                                    <AdminTextInput label="ชื่อที่แสดง" value={editData.displayName} onChange={v => setEditData({...editData, displayName: v})} theme={theme} />
+                                    <AdminTextInput label="ชื่อร้านค้า" value={editData.shopName} onChange={v => setEditData({...editData, shopName: v})} theme={theme} />
+                                    <AdminTextInput label="ที่อยู่ร้าน" value={editData.address} onChange={v => setEditData({...editData, address: v})} theme={theme} />
+                                    <AdminTextInput label="เบอร์โทรศัพท์" value={editData.phone} onChange={v => setEditData({...editData, phone: v})} theme={theme} />
+                                    <AdminTextInput label="URL รูปโปรไฟล์" value={editData.photoURL} onChange={v => setEditData({...editData, photoURL: v})} theme={theme} />
+                                    <button onClick={handleSave} className={`w-full font-bold py-2 rounded-xl mt-2 ${theme.btnPrimary}`}>บันทึกข้อมูล</button>
                                 </div>
                             )}
                         </div>
 
                         {!isEditing && (
                             <div className="flex-1 overflow-y-auto p-5">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 ml-1">ประวัติใบเสนอราคา ({savedQuotes.length})</h4>
-                                {loading ? <p className="text-center text-slate-400 text-sm py-10">กำลังโหลด...</p> : (
+                                <h4 className={`text-xs font-bold uppercase tracking-wider mb-4 ml-1 ${theme.textSub}`}>ประวัติใบเสนอราคา ({savedQuotes.length})</h4>
+                                {loading ? <p className={`text-center text-sm py-10 ${theme.textSub}`}>กำลังโหลด...</p> : (
                                     <div className="space-y-3">
-                                        {savedQuotes.length === 0 && <div className="text-center py-10 text-slate-400 text-sm bg-white rounded-2xl border border-dashed border-slate-200">ไม่มีประวัติการบันทึก</div>}
+                                        {savedQuotes.length === 0 && <div className={`text-center py-10 text-sm bg-white rounded-2xl border border-dashed ${theme.border} ${theme.textSub}`}>ไม่มีประวัติการบันทึก</div>}
                                         {savedQuotes.map(q => (
-                                            <div key={q.id} onClick={() => onLoad(q.items)} className="bg-white p-4 rounded-2xl shadow-sm border border-white hover:border-red-200 cursor-pointer transition-all hover:shadow-md hover:-translate-y-1 group">
+                                            <div key={q.id} onClick={() => onLoad(q.items)} className={`bg-white p-4 rounded-2xl shadow-sm border border-white cursor-pointer transition-all hover:shadow-md hover:-translate-y-1 group ${theme.cardBorder}`}>
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <h3 className="font-bold text-slate-800 text-sm group-hover:text-red-600 transition-colors">{q.name || 'ไม่มีชื่อ'}</h3>
+                                                        <h3 className={`font-bold text-sm transition-colors ${theme.textMain} group-hover:${theme.highlight}`}>{q.name || 'ไม่มีชื่อ'}</h3>
                                                         <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">{new Date(q.createdAt).toLocaleDateString('th-TH')}</span>
-                                                            <span className="text-[10px] text-slate-400">{q.items.length} รายการ</span>
+                                                            <span className={`text-[10px] px-2 py-0.5 rounded-md ${theme.bgSoft} ${theme.textSub}`}>{new Date(q.createdAt).toLocaleDateString('th-TH')}</span>
+                                                            <span className={`text-[10px] ${theme.textSub}`}>{q.items.length} รายการ</span>
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-col items-end gap-2">
-                                                        <span className="font-bold text-red-600 text-sm">{formatCurrency(q.total)}</span>
-                                                        <button onClick={(e) => deleteQuote(e, q.id)} className="p-1.5 text-slate-300 hover:text-white hover:bg-red-500 rounded-lg transition-colors"><Icons.Trash2 size={16} /></button>
+                                                        <span className={`font-bold text-sm ${theme.highlight}`}>{formatCurrency(q.total)}</span>
+                                                        <button onClick={(e) => deleteQuote(e, q.id)} className={`p-1.5 rounded-lg transition-colors ${theme.textSub} hover:${theme.primary} hover:${theme.bgSoft}`}><Icons.Trash2 size={16} /></button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -553,7 +556,7 @@
             );
         };
 
-        const CalculatorPage = ({ config, items, setItems, user, onLogin, userProfile }) => {
+        const CalculatorPage = ({ config, items, setItems, user, onLogin, userProfile, theme }) => {
             const [calcMode, setCalcMode] = useState('external');
             const [showQuote, setShowQuote] = useState(false);
             const [errorMsg, setErrorMsg] = useState('');
@@ -561,9 +564,9 @@
 
             const availableModes = useMemo(() => {
                 const modes = [];
-                if (config.showExternal) modes.push({ id: 'external', label: 'ม่านภายนอก', icon: <Icons.Sun size={28} /> });
-                if (config.showInternal) modes.push({ id: 'internal', label: 'ม่านภายใน', icon: <Icons.Roller size={28} /> });
-                if (config.showWooden) modes.push({ id: 'wooden', label: 'มู่ลี่ไม้', icon: <Icons.Blinds size={28} /> });
+                if (config.showExternal) modes.push({ id: 'external', label: 'ม่านภายนอก', icon: <Icons.Sun size={24} /> });
+                if (config.showInternal) modes.push({ id: 'internal', label: 'ม่านภายใน', icon: <Icons.Roller size={24} /> });
+                if (config.showWooden) modes.push({ id: 'wooden', label: 'มู่ลี่ไม้', icon: <Icons.Blinds size={24} /> });
                 return modes;
             }, [config]);
 
@@ -619,7 +622,7 @@
                 if (!name) return;
 
                 try {
-                    await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('quotations').add({
+                    await db.collection('artifacts').doc('sunny-blind-system').collection('users').doc(user.uid).collection('quotations').add({
                         name, items, total: items.reduce((a,b)=>a+b.grandTotal,0), createdAt: new Date().toISOString()
                     });
                     alert("บันทึกเรียบร้อย!");
@@ -629,8 +632,8 @@
             return (
                 <div className="pt-24 px-5 pb-40 fade-in">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-slate-800">คำนวณราคา</h2>
-                        {items.length > 0 && <button onClick={saveToHistory} className="text-xs font-bold text-red-600 bg-white border border-red-100 px-4 py-2 rounded-xl hover:bg-red-50 flex gap-2 items-center shadow-sm hover:shadow-md transition-all active:scale-95"><Icons.Save size={16}/> บันทึก</button>}
+                        <h2 className={`text-2xl font-bold ${theme.textMain}`}>คำนวณราคา</h2>
+                        {items.length > 0 && <button onClick={saveToHistory} className={`text-xs font-bold px-4 py-2 rounded-xl flex gap-2 items-center shadow-sm hover:shadow-md transition-all active:scale-95 hover:-translate-y-0.5 ${theme.btnSecondary}`}><Icons.Save size={16}/> บันทึก</button>}
                     </div>
                     
                     {/* Bento Grid Menu */}
@@ -640,13 +643,13 @@
                                 <button 
                                     key={mode.id} 
                                     onClick={() => setCalcMode(mode.id)} 
-                                    className={`bento-card relative overflow-hidden rounded-2xl p-3 flex flex-col items-center justify-center gap-2 h-24 border ${calcMode === mode.id ? 'bg-white border-red-200 shadow-lg ring-1 ring-red-100' : 'bg-white border-white shadow-sm hover:shadow-md'}`}
+                                    className={`bento-card relative overflow-hidden rounded-2xl p-3 flex flex-col items-center justify-center gap-2 h-24 border ${calcMode === mode.id ? `bg-white shadow-lg ring-1 ${theme.inputRing}` : 'bg-white border-white shadow-sm hover:shadow-md'}`}
                                 >
-                                    <div className={`p-2.5 rounded-full transition-colors ${calcMode === mode.id ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-400 group-hover:text-slate-600'}`}>
+                                    <div className={`p-2.5 rounded-full transition-colors ${calcMode === mode.id ? `${theme.bgSoft} ${theme.primary}` : `bg-slate-50 text-slate-400 group-hover:text-slate-600`}`}>
                                         {mode.icon}
                                     </div>
-                                    <span className={`text-xs font-bold transition-colors ${calcMode === mode.id ? 'text-red-600' : 'text-slate-500'}`}>{mode.label}</span>
-                                    {calcMode === mode.id && <div className="absolute inset-x-0 bottom-0 h-1 bg-red-500"></div>}
+                                    <span className={`text-xs font-bold transition-colors ${calcMode === mode.id ? theme.primary : theme.textSub}`}>{mode.label}</span>
+                                    {calcMode === mode.id && <div className={`absolute inset-x-0 bottom-0 h-1 ${theme.toggleActive}`}></div>}
                                 </button>
                             ))}
                         </div>
@@ -654,13 +657,13 @@
 
                     {/* Calculator Form */}
                     {availableModes.length > 0 && (
-                        <div className="bg-white rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white p-6 mb-6 relative overflow-hidden scale-in">
+                        <div className={`bg-white rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white p-6 mb-6 relative overflow-hidden scale-in`}>
                             {calcMode === 'wooden' && (
                                 <div className="mb-6">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 block ml-1">ชนิดไม้</label>
-                                    <div className="flex gap-3 bg-slate-50 p-1.5 rounded-xl">
+                                    <label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>ชนิดไม้</label>
+                                    <div className={`flex gap-3 p-1.5 rounded-xl ${theme.bgSoft}`}>
                                         {['BASSWOOD', 'FAUX WOOD'].map(t => (
-                                            <label key={t} className={`flex-1 cursor-pointer rounded-lg py-2.5 flex items-center justify-center transition-all ${formData.woodType === t ? 'bg-white shadow-sm text-slate-800 font-bold' : 'text-slate-400 font-medium hover:text-slate-600'}`}>
+                                            <label key={t} className={`flex-1 cursor-pointer rounded-lg py-2.5 flex items-center justify-center transition-all ${formData.woodType === t ? 'bg-white shadow-sm font-bold' : 'font-medium opacity-60'} ${theme.textMain}`}>
                                                 <input type="radio" name="woodType" value={t} checked={formData.woodType === t} onChange={handleInputChange} className="hidden" />
                                                 <span className="text-xs">{t}</span>
                                             </label>
@@ -670,31 +673,31 @@
                             )}
                             
                             <div className="grid grid-cols-2 gap-4 mb-5">
-                                <div><label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">กว้าง (cm)</label><input type="number" name="width" value={formData.width} onChange={handleInputChange} className="input-apple w-full bg-slate-50 border border-slate-200/60 rounded-xl p-4 font-bold text-xl text-slate-700 transition-all placeholder-slate-300" placeholder="0" /></div>
-                                <div><label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">สูง (cm)</label><input type="number" name="height" value={formData.height} onChange={handleInputChange} className="input-apple w-full bg-slate-50 border border-slate-200/60 rounded-xl p-4 font-bold text-xl text-slate-700 transition-all placeholder-slate-300" placeholder="0" /></div>
+                                <div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>กว้าง (cm)</label><input type="number" name="width" value={formData.width} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300`} placeholder="0" /></div>
+                                <div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>สูง (cm)</label><input type="number" name="height" value={formData.height} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300`} placeholder="0" /></div>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-4 mb-6">
                                 {calcMode !== 'wooden' ? (
-                                    <div><label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">ราคาผ้า</label><input type="number" name="price" value={formData.price} onChange={handleInputChange} className="input-apple w-full bg-slate-50 border border-slate-200/60 rounded-xl p-4 font-bold text-xl text-slate-700 transition-all placeholder-slate-300" placeholder="฿" /></div>
+                                    <div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ราคาผ้า</label><input type="number" name="price" value={formData.price} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300`} placeholder="฿" /></div>
                                 ) : (
-                                    <div><label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">ราคา/หน่วย</label><div className="w-full bg-slate-100 border border-transparent rounded-xl p-4 font-bold text-xl text-slate-500 flex items-center">{formatCurrency(formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice)}</div></div>
+                                    <div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ราคา/หน่วย</label><div className={`w-full ${theme.bgSoft} border border-transparent rounded-xl p-4 font-bold text-xl flex items-center ${theme.textSub}`}>{formatCurrency(formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice)}</div></div>
                                 )}
                                 <div>
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block ml-1">จำนวน</label>
-                                    <div className="flex bg-slate-50 border border-slate-200/60 rounded-xl overflow-hidden h-[62px]">
-                                        <button onClick={() => setFormData(p => ({...p, qty: Math.max(1, parseInt(p.qty)-1 || 1).toString()}))} className="px-5 hover:bg-slate-200 text-slate-400 font-bold text-xl transition-colors">-</button>
-                                        <input type="number" name="qty" value={formData.qty} onChange={handleInputChange} className="w-full bg-transparent text-center font-bold text-xl text-slate-700 focus:outline-none" />
-                                        <button onClick={() => setFormData(p => ({...p, qty: (parseInt(p.qty)+1 || 1).toString()}))} className="px-5 hover:bg-slate-200 text-slate-400 font-bold text-xl transition-colors">+</button>
+                                    <label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>จำนวน</label>
+                                    <div className={`flex bg-white border ${theme.border} rounded-xl overflow-hidden h-[62px]`}>
+                                        <button onClick={() => setFormData(p => ({...p, qty: Math.max(1, parseInt(p.qty)-1 || 1).toString()}))} className={`px-5 font-bold text-xl transition-colors hover:bg-slate-50 ${theme.textSub}`}>-</button>
+                                        <input type="number" name="qty" value={formData.qty} onChange={handleInputChange} className={`w-full bg-transparent text-center font-bold text-xl focus:outline-none ${theme.textMain}`} />
+                                        <button onClick={() => setFormData(p => ({...p, qty: (parseInt(p.qty)+1 || 1).toString()}))} className={`px-5 font-bold text-xl transition-colors hover:bg-slate-50 ${theme.textSub}`}>+</button>
                                     </div>
                                 </div>
                             </div>
                             
                             <div className="mb-8">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 block ml-1">ตำแหน่งโซ่/สลิง</label>
+                                <label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>ตำแหน่งโซ่/สลิง</label>
                                 <div className="flex gap-4">
                                     {['ซ้าย', 'ขวา'].map(s => (
-                                        <label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? 'border-red-500 bg-red-50 text-red-700 shadow-sm' : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
+                                        <label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>
                                             <input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" />
                                             <span className="font-bold">{s}</span>
                                         </label>
@@ -704,7 +707,7 @@
                             
                             {errorMsg && <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl flex items-center gap-3 animate-pulse border border-red-100"><Icons.AlertCircle size={20} /> {errorMsg}</div>}
                             
-                            <button onClick={calculateItem} className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold text-lg py-4 rounded-2xl shadow-lg shadow-red-500/30 active:scale-95 transition-all flex justify-center items-center gap-2 hover:-translate-y-1">
+                            <button onClick={calculateItem} className={`w-full font-bold text-lg py-4 rounded-2xl shadow-lg active:scale-95 transition-all flex justify-center items-center gap-2 hover:-translate-y-1 ${theme.btnPrimary}`}>
                                 <Icons.Plus size={24} /> เพิ่มรายการ
                             </button>
                         </div>
@@ -713,42 +716,41 @@
                     {items.length > 0 && (
                         <div className="space-y-4 pb-20">
                             <div className="flex justify-between items-center px-4">
-                                <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">รายการ ({items.length})</span>
-                                <button onClick={() => setItems([])} className="text-xs text-red-500 font-bold bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"><Icons.Trash2 size={14}/> ล้าง</button>
+                                <span className={`text-sm font-bold uppercase tracking-wider ${theme.textSub}`}>รายการ ({items.length})</span>
+                                <button onClick={() => setItems([])} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${theme.btnSecondary}`}><Icons.Trash2 size={14}/> ล้าง</button>
                             </div>
                             {items.map((item) => (
-                                <div key={item.id} className="bg-white p-5 rounded-2xl border border-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] relative group scale-in hover:scale-[1.02] transition-transform">
-                                    <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 p-2 rounded-full hover:bg-slate-50 transition-colors"><Icons.X size={18} /></button>
+                                <div key={item.id} className={`bg-white p-5 rounded-2xl border border-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] relative group scale-in hover:scale-[1.02] transition-transform`}>
+                                    <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${theme.textSub} hover:${theme.primary} hover:${theme.bgSoft}`}><Icons.X size={18} /></button>
                                     <div className="flex items-center gap-3 mb-4">
-                                        <div className={`p-2 rounded-xl ${item.type === 'external' ? 'bg-orange-50 text-orange-500' : item.type === 'wooden' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-500'}`}>
+                                        <div className={`p-2 rounded-xl ${theme.bgSoft} ${theme.primary}`}>
                                             {item.type === 'external' ? <Icons.Sun size={18} /> : item.type === 'wooden' ? <Icons.Blinds size={18} /> : <Icons.Roller size={18} />}
                                         </div>
-                                        <span className="text-sm font-bold text-slate-700">{item.typeName}</span>
+                                        <span className={`text-sm font-bold ${theme.textMain}`}>{item.typeName}</span>
                                     </div>
                                     <div className="flex justify-between items-end">
                                         <div>
-                                            <div className="text-lg font-bold text-slate-800 font-mono tracking-tight">{item.w_cm} <span className="text-slate-400 text-sm">x</span> {item.h_cm} <span className="text-xs text-slate-400 font-sans">cm</span></div>
-                                            <div className="text-xs font-medium text-slate-400 mt-1 bg-slate-50 inline-block px-2 py-1 rounded-md border border-slate-100">จำนวน {item.qty} ชุด • ปรับ{item.side}</div>
+                                            <div className={`text-lg font-bold font-mono tracking-tight ${theme.textMain}`}>{item.w_cm} <span className="text-slate-400 text-sm">x</span> {item.h_cm} <span className="text-xs text-slate-400 font-sans">cm</span></div>
+                                            <div className={`text-xs font-medium mt-1 inline-block px-2 py-1 rounded-md border border-slate-100 ${theme.textSub} ${theme.bgSoft}`}>จำนวน {item.qty} ชุด • ปรับ{item.side}</div>
                                         </div>
-                                        <div className="text-xl font-bold text-red-600">{formatCurrency(item.grandTotal)}</div>
+                                        <div className={`text-xl font-bold ${theme.highlight}`}>{formatCurrency(item.grandTotal)}</div>
                                     </div>
                                 </div>
                             ))}
-                            <button onClick={() => setShowQuote(true)} className="w-full bg-slate-800 text-white px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg hover:bg-slate-700 active:scale-95 transition-all mt-4 hover:-translate-y-1"><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button>
+                            <button onClick={() => setShowQuote(true)} className={`w-full px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg active:scale-95 transition-all mt-4 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button>
                         </div>
                     )}
-                    {showQuote && <QuotationModal items={items} onClose={() => setShowQuote(false)} config={config} userProfile={userProfile} />}
+                    {showQuote && <QuotationModal items={items} onClose={() => setShowQuote(false)} config={config} userProfile={userProfile} theme={theme} />}
                 </div>
             );
         };
 
-        const QuotationModal = ({ items, onClose, config, userProfile }) => {
+        const QuotationModal = ({ items, onClose, config, userProfile, theme }) => {
             const [showVat, setShowVat] = useState(false);
             const [showMethod, setShowMethod] = useState(false);
             const [customerName, setCustomerName] = useState('');
             const quoteRef = useRef(null);
             
-            // Logic to use User Profile Data or Default Config
             const displayCompanyName = userProfile?.shopName || config.companyName || 'SUNNY BLIND SYSTEM';
             const displayCompanyDesc = userProfile?.address || config.companyDesc || 'จำหน่ายและติดตั้งผ้าม่าน มู่ลี่ วอลเปเปอร์';
             const displayCompanyContact = userProfile?.phone || config.companyContact || 'โทร: 02-123-4567';
@@ -777,48 +779,42 @@
             return (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[70] flex items-center justify-center p-4 fade-in">
                     <div className="bg-white rounded-[2rem] w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden scale-in">
-                        
                         <div className="p-4 border-b flex flex-wrap justify-between items-center bg-slate-50/80 backdrop-blur-sm gap-4">
-                            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Icons.FileText size={24} className="text-red-500" /> ใบเสนอราคาตัวอย่าง</h3>
+                            <h3 className={`font-bold text-lg flex items-center gap-2 ${theme.textMain}`}><Icons.FileText size={24} className={theme.icon} /> ใบเสนอราคาตัวอย่าง</h3>
                             <div className="flex items-center gap-3 flex-wrap">
-                                <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:border-red-300 transition-all select-none hover:-translate-y-0.5"><input type="checkbox" checked={showVat} onChange={() => setShowVat(!showVat)} className="w-4 h-4 text-red-600 rounded focus:ring-red-500 border-gray-300" /><span className="text-sm font-bold text-slate-700">VAT 7%</span></label>
-                                <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:border-red-300 transition-all select-none hover:-translate-y-0.5"><input type="checkbox" checked={showMethod} onChange={() => setShowMethod(!showMethod)} className="w-4 h-4 text-red-600 rounded focus:ring-red-500 border-gray-300" /><span className="text-sm font-bold text-slate-700">วิธีคำนวณ</span></label>
+                                <label className={`flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:border-gray-300 transition-all select-none hover:-translate-y-0.5 ${theme.textMain}`}><input type="checkbox" checked={showVat} onChange={() => setShowVat(!showVat)} className="w-4 h-4 rounded border-gray-300" /><span className="text-sm font-bold">VAT 7%</span></label>
+                                <label className={`flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:border-gray-300 transition-all select-none hover:-translate-y-0.5 ${theme.textMain}`}><input type="checkbox" checked={showMethod} onChange={() => setShowMethod(!showMethod)} className="w-4 h-4 rounded border-gray-300" /><span className="text-sm font-bold">วิธีคำนวณ</span></label>
                                 <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors hover:scale-110"><Icons.X size={24} /></button>
                             </div>
                         </div>
-                        
                         <div className="overflow-y-auto flex-1 bg-slate-100 p-4 md:p-8 flex justify-center">
                             <div ref={quoteRef} className="a4-paper relative flex flex-col shadow-xl">
                                 <div className="flex justify-between items-start mb-8">
                                     <div className="flex items-center gap-4">
                                         <img src={config.logoUrl} className="h-20 w-auto object-contain" alt="Company Logo" onError={(e) => e.target.style.display = 'none'} />
-                                        <div>
-                                            <h1 className="text-2xl font-bold text-slate-800">{displayCompanyName}</h1>
-                                            <p className="text-sm text-slate-500">{displayCompanyDesc}</p>
-                                            <p className="text-sm text-slate-500">{displayCompanyContact}</p>
-                                        </div>
+                                        <div><h1 className="text-2xl font-bold text-slate-800">{displayCompanyName}</h1><p className="text-sm text-slate-500">{displayCompanyDesc}</p><p className="text-sm text-slate-500">{displayCompanyContact}</p></div>
                                     </div>
                                     <div className="text-right"><div className="text-3xl font-bold text-slate-200 uppercase tracking-widest mb-2">Quotation</div><div className="text-sm font-bold text-slate-600">ใบเสนอราคา</div><div className="text-sm text-slate-500 mt-1">วันที่: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</div></div>
                                 </div>
                                 <div className="border-t-2 border-b-2 border-slate-100 py-4 mb-6 flex gap-4">
-                                    <div className="flex-1"><label className="text-xs font-bold text-slate-400 block mb-1">ลูกค้า (Customer):</label><input type="text" className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm font-bold text-slate-700 focus:outline-none focus:border-red-300 placeholder-slate-300" placeholder="ระบุชื่อลูกค้า..." value={customerName} onChange={(e) => setCustomerName(e.target.value)} /></div>
-                                    <div className="flex-1"><label className="text-xs font-bold text-slate-400 block mb-1">ที่อยู่ (Address):</label><input type="text" className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm text-slate-700 focus:outline-none focus:border-red-300 placeholder-slate-300" placeholder="ระบุที่อยู่..." /></div>
+                                    <div className="flex-1"><label className="text-xs font-bold text-slate-400 block mb-1">ลูกค้า (Customer):</label><input type="text" className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm font-bold text-slate-700 focus:outline-none focus:border-slate-400 placeholder-slate-300" placeholder="ระบุชื่อลูกค้า..." value={customerName} onChange={(e) => setCustomerName(e.target.value)} /></div>
+                                    <div className="flex-1"><label className="text-xs font-bold text-slate-400 block mb-1">ที่อยู่ (Address):</label><input type="text" className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-sm text-slate-700 focus:outline-none focus:border-slate-400 placeholder-slate-300" placeholder="ระบุที่อยู่..." /></div>
                                 </div>
                                 <table className="w-full text-sm mb-auto">
-                                    <thead><tr className="bg-red-600 text-white"><th className="py-2 px-3 text-center w-12 rounded-tl-lg">ลำดับ</th><th className="py-2 px-3 text-left">รายการสินค้า</th><th className="py-2 px-3 text-center">ขนาด (cm)</th><th className="py-2 px-3 text-center">ปรับ</th><th className="py-2 px-3 text-center">จำนวน</th><th className="py-2 px-3 text-right">ราคา/หน่วย</th><th className="py-2 px-3 text-right rounded-tr-lg">รวมเงิน</th></tr></thead>
+                                    <thead><tr className="bg-slate-800 text-white"><th className="py-2 px-3 text-center w-12 rounded-tl-lg">ลำดับ</th><th className="py-2 px-3 text-left">รายการสินค้า</th><th className="py-2 px-3 text-center">ขนาด (cm)</th><th className="py-2 px-3 text-center">ปรับ</th><th className="py-2 px-3 text-center">จำนวน</th><th className="py-2 px-3 text-right">ราคา/หน่วย</th><th className="py-2 px-3 text-right rounded-tr-lg">รวมเงิน</th></tr></thead>
                                     <tbody className="text-slate-700">{items.map((item, index) => (<React.Fragment key={item.id}><tr className="border-b border-slate-100 hover:bg-slate-50"><td className="py-3 px-3 text-center font-medium text-slate-400">{index + 1}</td><td className="py-3 px-3 font-bold">{item.typeName}</td><td className="py-3 px-3 text-center font-mono text-xs">{item.w_cm} x {item.h_cm}</td><td className="py-3 px-3 text-center">{item.side}</td><td className="py-3 px-3 text-center">{item.qty}</td><td className="py-3 px-3 text-right font-mono">{formatCurrency(item.totalPerUnit)}</td><td className="py-3 px-3 text-right font-bold">{formatCurrency(item.grandTotal)}</td></tr>{showMethod && (<tr className="bg-slate-50 border-b border-slate-100"><td colSpan="7" className="py-2 px-4 text-xs text-slate-500"><div className="font-bold text-slate-700 mb-1">วิธีคำนวณ:</div><ul className="list-disc list-inside space-y-0.5"><li>ผ้า: {item.details.fabricFormula}</li>{item.type === 'external' && (<><li>รางบน: {item.details.topRailFormula}</li><li>รางล่าง: {item.details.bottomRailFormula}</li><li>สลิง: {item.details.slingFormula}</li><li>อุปกรณ์: {formatCurrency(item.details.hardwarePrice)}</li><li className="font-bold text-red-600">รวมต่อชุด: {item.details.sumFormula}</li></>)}{item.type !== 'external' && <li>{item.details.mainFormula}</li>}</ul></td></tr>)}</React.Fragment>))}</tbody>
                                 </table>
-                                <div className="mt-8 flex justify-end"><div className="w-64 space-y-2"><div className="flex justify-between text-slate-600"><span>รวมเป็นเงิน</span><span className="font-bold">{formatCurrency(subtotal)}</span></div>{showVat && (<div className="flex justify-between text-slate-600"><span>ภาษีมูลค่าเพิ่ม 7%</span><span className="font-bold">{formatCurrency(vatAmount)}</span></div>)}<div className="flex justify-between text-lg font-bold text-red-600 border-t-2 border-slate-200 pt-2 mt-2"><span>จำนวนเงินทั้งสิ้น</span><span>{formatCurrency(grandTotal)}</span></div></div></div>
+                                <div className="mt-8 flex justify-end"><div className="w-64 space-y-2"><div className="flex justify-between text-slate-600"><span>รวมเป็นเงิน</span><span className="font-bold">{formatCurrency(subtotal)}</span></div>{showVat && (<div className="flex justify-between text-slate-600"><span>ภาษีมูลค่าเพิ่ม 7%</span><span className="font-bold">{formatCurrency(vatAmount)}</span></div>)}<div className="flex justify-between text-lg font-bold text-slate-800 border-t-2 border-slate-200 pt-2 mt-2"><span>จำนวนเงินทั้งสิ้น</span><span>{formatCurrency(grandTotal)}</span></div></div></div>
                                 <div className="mt-12 flex justify-between text-center"><div className="mt-8"><div className="w-40 border-b border-slate-300 mb-2"></div><p className="text-xs text-slate-400">ผู้เสนอราคา</p></div><div className="mt-8"><div className="w-40 border-b border-slate-300 mb-2"></div><p className="text-xs text-slate-400">ผู้อนุมัติสั่งซื้อ</p></div></div>
                             </div>
                         </div>
-                        <div className="p-5 bg-white border-t flex flex-col md:flex-row gap-4"><button onClick={handleDownloadPDF} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base transition-colors hover:-translate-y-1"><Icons.Download size={20} /> ดาวน์โหลด PDF (A4)</button><button onClick={handleSaveImage} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base transition-colors hover:-translate-y-1"><Icons.Image size={20} /> บันทึกเป็นรูปภาพ</button></div>
+                        <div className="p-5 bg-white border-t flex flex-col md:flex-row gap-4"><button onClick={handleDownloadPDF} className={`flex-1 ${theme.btnPrimary} py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base transition-colors hover:-translate-y-1`}><Icons.Download size={20} /> ดาวน์โหลด PDF (A4)</button><button onClick={handleSaveImage} className={`flex-1 ${theme.btnSecondary} py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base transition-colors hover:-translate-y-1`}><Icons.Image size={20} /> บันทึกเป็นรูปภาพ</button></div>
                     </div>
                 </div>
             );
         };
 
-        const AdminModal = ({ isOpen, onClose, isLoggedIn, setLoggedIn, config, onSave }) => {
+        const AdminModal = ({ isOpen, onClose, isLoggedIn, setLoggedIn, config, onSave, theme }) => {
             const [passcode, setPasscode] = useState('');
             const [editConfig, setEditConfig] = useState(config);
             const [msg, setMsg] = useState('');
@@ -827,26 +823,42 @@
             if (!isOpen) return null;
             return (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 fade-in">
-                    <div className="bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh] scale-in">
-                        <div className="p-5 border-b border-slate-100 flex justify-between items-center"><h3 className="font-bold text-lg text-slate-800">ตั้งค่าระบบ</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><Icons.X size={24} className="text-slate-400" /></button></div>
+                    <div className={`bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh] scale-in`}>
+                        <div className="p-5 border-b border-slate-100 flex justify-between items-center"><h3 className={`font-bold text-lg ${theme.textMain}`}>ตั้งค่าระบบ</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><Icons.X size={24} className="text-slate-400" /></button></div>
                         {!isLoggedIn ? (
-                            <div className="p-8 text-center"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Lock size={32} className="text-slate-500" /></div><h2 className="text-xl font-bold text-slate-800 mb-6">เข้าสู่ระบบหลังบ้าน</h2><input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="กรอกรหัสผ่าน" className="input-apple w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-lg font-bold mb-4" />{msg && <p className="text-red-500 text-sm mb-4">{msg}</p>}<button onClick={handleLogin} className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition-colors">เข้าสู่ระบบ</button></div>
+                            <div className="p-8 text-center"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Lock size={32} className="text-slate-500" /></div><h2 className="text-xl font-bold text-slate-800 mb-6">เข้าสู่ระบบหลังบ้าน</h2><input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="กรอกรหัสผ่าน" className="input-apple w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-lg font-bold mb-4" />{msg && <p className="text-red-500 text-sm mb-4">{msg}</p>}<button onClick={handleLogin} className={`w-full py-3 rounded-xl font-bold transition-colors ${theme.btnPrimary}`}>เข้าสู่ระบบ</button></div>
                         ) : (
-                            <div className="p-6 flex-1 overflow-y-auto"><div className="space-y-5"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">ข้อมูลร้านค้า</h3><AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} /><AdminTextInput label="ชื่อร้าน/บริษัท" value={editConfig.companyName} onChange={(v) => setEditConfig({...editConfig, companyName: v})} /><AdminTextInput label="รายละเอียด/ที่อยู่" value={editConfig.companyDesc} onChange={(v) => setEditConfig({...editConfig, companyDesc: v})} /><AdminTextInput label="เบอร์โทรติดต่อ" value={editConfig.companyContact} onChange={(v) => setEditConfig({...editConfig, companyContact: v})} /><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6">เมนูคำนวณ</h3><div className="space-y-2"><AdminToggle label="ม่านภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} /><AdminToggle label="ม่านภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} /><AdminToggle label="มู่ลี่ไม้" value={editConfig.showWooden} onChange={v => setEditConfig({...editConfig, showWooden: v})} /></div><h3 className="text-sm font-bold text-blue-500 uppercase tracking-wider mt-6">ราคากลาง (External)</h3><AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" /><AdminInput label="ราคารางบน" value={editConfig.topRailPrice} onChange={(v) => setEditConfig({...editConfig, topRailPrice: v})} unit="บาท" /><AdminInput label="ราคารางล่าง" value={editConfig.bottomRailPrice} onChange={(v) => setEditConfig({...editConfig, bottomRailPrice: v})} unit="บาท" /><AdminInput label="ราคาสลิงข้าง" value={editConfig.slingPrice} onChange={(v) => setEditConfig({...editConfig, slingPrice: v})} unit="บาท" /><AdminInput label="ตัวคูณสูตรผ้า" value={editConfig.fabricFactor} onChange={(v) => setEditConfig({...editConfig, fabricFactor: v})} unit="เท่า" step={0.1} /><h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider mt-6">ราคากลาง (Wooden)</h3><AdminInput label="ราคา BASSWOOD" value={editConfig.basswoodPrice} onChange={(v) => setEditConfig({...editConfig, basswoodPrice: v})} unit="บาท" /><AdminInput label="ราคา FAUX WOOD" value={editConfig.fauxwoodPrice} onChange={(v) => setEditConfig({...editConfig, fauxwoodPrice: v})} unit="บาท" /></div><div className="flex gap-3 mt-8 pt-4 border-t"><button onClick={handleReset} className="p-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><Icons.RotateCcw size={20} /></button><button onClick={() => onSave(editConfig)} className="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 flex items-center justify-center gap-2"><Icons.Save size={18} /> บันทึกออนไลน์</button></div><button onClick={() => setLoggedIn(false)} className="w-full mt-3 text-xs text-red-400 hover:text-red-500 flex items-center justify-center gap-1"><Icons.LogOut size={12} /> ออกจากระบบ</button></div>
+                            <div className="p-6 flex-1 overflow-y-auto"><div className="space-y-5"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">ข้อมูลร้านค้า</h3>
+                            
+                            {/* Theme Selector */}
+                            <div className="mb-4">
+                                <label className="text-xs font-bold text-slate-400 mb-1.5 block ml-1">เลือกธีม (Theme)</label>
+                                <select 
+                                    value={editConfig.theme} 
+                                    onChange={(e) => setEditConfig({...editConfig, theme: e.target.value})}
+                                    className="input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700"
+                                >
+                                    {Object.values(THEMES).map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} theme={theme} /><AdminTextInput label="ชื่อร้าน/บริษัท" value={editConfig.companyName} onChange={(v) => setEditConfig({...editConfig, companyName: v})} theme={theme} /><AdminTextInput label="รายละเอียด/ที่อยู่" value={editConfig.companyDesc} onChange={(v) => setEditConfig({...editConfig, companyDesc: v})} theme={theme} /><AdminTextInput label="เบอร์โทรติดต่อ" value={editConfig.companyContact} onChange={(v) => setEditConfig({...editConfig, companyContact: v})} theme={theme} /><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6">เมนูคำนวณ</h3><div className="space-y-2"><AdminToggle label="ม่านภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} theme={theme} /><AdminToggle label="ม่านภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} theme={theme} /><AdminToggle label="มู่ลี่ไม้" value={editConfig.showWooden} onChange={v => setEditConfig({...editConfig, showWooden: v})} theme={theme} /></div><h3 className="text-sm font-bold text-blue-500 uppercase tracking-wider mt-6">ราคากลาง (External)</h3><AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางบน" value={editConfig.topRailPrice} onChange={(v) => setEditConfig({...editConfig, topRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางล่าง" value={editConfig.bottomRailPrice} onChange={(v) => setEditConfig({...editConfig, bottomRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคาสลิงข้าง" value={editConfig.slingPrice} onChange={(v) => setEditConfig({...editConfig, slingPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ตัวคูณสูตรผ้า" value={editConfig.fabricFactor} onChange={(v) => setEditConfig({...editConfig, fabricFactor: v})} unit="เท่า" step={0.1} theme={theme} /><h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider mt-6">ราคากลาง (Wooden)</h3><AdminInput label="ราคา BASSWOOD" value={editConfig.basswoodPrice} onChange={(v) => setEditConfig({...editConfig, basswoodPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคา FAUX WOOD" value={editConfig.fauxwoodPrice} onChange={(v) => setEditConfig({...editConfig, fauxwoodPrice: v})} unit="บาท" theme={theme} /></div><div className="flex gap-3 mt-8 pt-4 border-t"><button onClick={handleReset} className="p-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><Icons.RotateCcw size={20} /></button><button onClick={() => onSave(editConfig)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 ${theme.btnPrimary}`}><Icons.Save size={18} /> บันทึกออนไลน์</button></div><button onClick={() => setLoggedIn(false)} className="w-full mt-3 text-xs text-red-400 hover:text-red-500 flex items-center justify-center gap-1"><Icons.LogOut size={12} /> ออกจากระบบ</button></div>
                         )}
                     </div>
                 </div>
             );
         };
 
-        const AdminToggle = ({ label, value, onChange }) => (
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100 shadow-sm"><span className="text-sm font-bold text-slate-700">{label}</span><button onClick={() => onChange(!value)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${value ? 'bg-green-500' : 'bg-slate-200'}`}><span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${value ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
+        const AdminToggle = ({ label, value, onChange, theme }) => (
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100 shadow-sm"><span className="text-sm font-bold text-slate-700">{label}</span><button onClick={() => onChange(!value)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${value ? theme.toggleActive : 'bg-slate-200'}`}><span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${value ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
         );
-        const AdminInput = ({ label, value, onChange, unit, step = 1 }) => (
-            <div><label className="text-xs font-bold text-slate-400 mb-1.5 block ml-1">{label}</label><div className="relative"><input type="number" value={value} onChange={(e) => onChange(parseFloat(e.target.value))} step={step} className="input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700" /><span className="absolute right-3 top-3 text-sm font-bold text-slate-400">{unit}</span></div></div>
+        const AdminInput = ({ label, value, onChange, unit, step = 1, theme }) => (
+            <div><label className="text-xs font-bold text-slate-400 mb-1.5 block ml-1">{label}</label><div className="relative"><input type="number" value={value} onChange={(e) => onChange(parseFloat(e.target.value))} step={step} className={`input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700 ${theme.inputRing}`} /><span className="absolute right-3 top-3 text-sm font-bold text-slate-400">{unit}</span></div></div>
         );
-        const AdminTextInput = ({ label, value, onChange }) => (
-            <div><label className="text-xs font-bold text-slate-400 mb-1.5 block ml-1">{label}</label><div className="relative"><input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700" /></div></div>
+        const AdminTextInput = ({ label, value, onChange, theme }) => (
+            <div><label className="text-xs font-bold text-slate-400 mb-1.5 block ml-1">{label}</label><div className="relative"><input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={`input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700 ${theme.inputRing}`} /></div></div>
         );
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
