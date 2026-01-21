@@ -189,7 +189,8 @@
             User: (p) => <Icon {...p} path={<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></>} />,
             Sun: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></>} />,
             Blinds: (p) => <Icon {...p} path={<><path d="M3 3h18"></path><path d="M20 7H4"></path><path d="M20 11H4"></path><path d="M20 15H4"></path><path d="M4 19h16"></path><path d="M8 3v16"></path><path d="M16 3v16"></path></>} />,
-            Roller: (p) => <Icon {...p} path={<><rect x="3" y="3" width="18" height="4" rx="1"></rect><rect x="5" y="7" width="14" height="12"></rect><line x1="12" y1="19" x2="12" y2="22"></line><circle cx="12" cy="22" r="1"></circle></>} />
+            Roller: (p) => <Icon {...p} path={<><rect x="3" y="3" width="18" height="4" rx="1"></rect><rect x="5" y="7" width="14" height="12"></rect><line x1="12" y1="19" x2="12" y2="22"></line><circle cx="12" cy="22" r="1"></circle></>} />,
+            Edit: (p) => <Icon {...p} path={<><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></>} />
         };
 
         const formatCurrency = (amount) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 2 }).format(amount);
@@ -219,9 +220,10 @@
             const [showProfile, setShowProfile] = useState(false);
             const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
             const [user, setUser] = useState(null);
+            const [userProfile, setUserProfile] = useState(null); // User's custom profile data
             const [isFirebaseReady, setIsFirebaseReady] = useState(false);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
-            const [items, setItems] = useState([]); // Shared items state
+            const [items, setItems] = useState([]); 
 
             useEffect(() => {
                 window.addEventListener('beforeinstallprompt', (e) => {
@@ -256,7 +258,7 @@
                 if (confirm("ต้องการออกจากระบบ?")) {
                     await auth.signOut();
                     setShowProfile(false);
-                    setItems([]); // Clear items on logout
+                    setItems([]); 
                 }
             };
 
@@ -272,13 +274,22 @@
                     setUser(currentUser);
                     if (currentUser) {
                         setIsFirebaseReady(true);
+                        // Config Listener
                         const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
                         configRef.onSnapshot((docSnap) => {
                             if (docSnap.exists) setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() });
                             else configRef.set(DEFAULT_CONFIG).catch(console.error);
                         }, () => loadLocal());
+
+                        // Profile Listener
+                        const profileRef = db.doc(`artifacts/${appId}/users/${currentUser.uid}/profile/info`);
+                        profileRef.onSnapshot(doc => {
+                            setUserProfile(doc.exists ? doc.data() : null);
+                        });
+
                     } else {
                         loadLocal();
+                        setUserProfile(null);
                     }
                 });
                 return () => unsubscribeAuth();
@@ -299,10 +310,20 @@
                 }
             };
 
-            // Load saved quotation to items
+            const saveUserProfile = async (newProfile) => {
+                if (db && user) {
+                    try {
+                        await db.doc(`artifacts/${appId}/users/${user.uid}/profile/info`).set(newProfile, { merge: true });
+                        alert("บันทึกข้อมูลโปรไฟล์เรียบร้อย");
+                    } catch (e) {
+                        alert("บันทึกโปรไฟล์ไม่สำเร็จ: " + e.message);
+                    }
+                }
+            };
+
             const loadQuotation = (savedItems) => {
                 setItems(savedItems);
-                setShowProfile(false); // Close profile modal
+                setShowProfile(false); 
                 setActiveTab('calculator');
             };
 
@@ -320,11 +341,11 @@
                             <div className="flex items-center gap-3">
                                 {user ? (
                                     <button className="flex items-center gap-2 focus:outline-none hover:scale-105 transition-transform" onClick={() => setShowProfile(true)}>
-                                        <img src={user.photoURL} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" alt="User" />
+                                        <img src={userProfile?.photoURL || user.photoURL} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" alt="User" />
                                     </button>
                                 ) : (
                                     <button onClick={handleLogin} className="flex items-center gap-2 text-sm font-bold bg-white text-slate-800 px-5 py-2.5 rounded-full shadow-md hover:shadow-lg transition-all active:scale-95 border border-slate-200">
-                                        <Icons.Google size={28} /> <span>เข้าสู่ระบบด้วย Gmail</span>
+                                        <Icons.Google size={28} className="text-red-600" /> <span>เข้าสู่ระบบด้วย Gmail</span>
                                     </button>
                                 )}
                             </div>
@@ -332,9 +353,9 @@
 
                         {activeTab === 'home' && <HomePage setActiveTab={setActiveTab} config={config} onInstall={handleInstallApp} />}
                         {activeTab === 'stock' && <StockPage />}
-                        {activeTab === 'calculator' && <CalculatorPage config={config} items={items} setItems={setItems} user={user} onLogin={handleLogin} />}
+                        {activeTab === 'calculator' && <CalculatorPage config={config} items={items} setItems={setItems} user={user} onLogin={handleLogin} userProfile={userProfile} />}
 
-                        {/* Bottom Navigation - Glass Dock */}
+                        {/* Bottom Navigation */}
                         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[380px] glass-panel rounded-3xl p-2 flex justify-around items-center z-50">
                            <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Icons.Home size={24} />} label="หน้าหลัก" />
                            <NavButton active={activeTab === 'stock'} onClick={() => setActiveTab('stock')} icon={<Icons.Box size={24} />} label="สต็อก" />
@@ -352,9 +373,11 @@
                         {showProfile && user && (
                             <ProfileModal 
                                 user={user} 
+                                userProfile={userProfile}
                                 onClose={() => setShowProfile(false)} 
                                 onLogout={handleLogout} 
                                 onLoad={loadQuotation} 
+                                onSaveProfile={saveUserProfile}
                             />
                         )}
                     </div>
@@ -422,9 +445,17 @@
             </div>
         );
 
-        const ProfileModal = ({ user, onClose, onLogout, onLoad }) => {
+        const ProfileModal = ({ user, userProfile, onClose, onLogout, onLoad, onSaveProfile }) => {
             const [savedQuotes, setSavedQuotes] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [isEditing, setIsEditing] = useState(false);
+            const [editData, setEditData] = useState({
+                displayName: userProfile?.displayName || user.displayName,
+                shopName: userProfile?.shopName || '',
+                address: userProfile?.address || '',
+                phone: userProfile?.phone || '',
+                photoURL: userProfile?.photoURL || user.photoURL
+            });
 
             useEffect(() => {
                 if (!db) return;
@@ -446,6 +477,11 @@
                 } catch(e) { alert(e.message); }
             };
 
+            const handleSave = () => {
+                onSaveProfile(editData);
+                setIsEditing(false);
+            };
+
             return (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex items-end sm:items-center justify-center p-4 fade-in">
                     <div className="bg-[#f5f5f7] rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh] slide-up">
@@ -454,47 +490,70 @@
                             <button onClick={onClose} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"><Icons.X size={20} className="text-slate-500" /></button>
                         </div>
                         
-                        <div className="p-8 flex flex-col items-center bg-white relative">
-                            <div className="absolute top-0 left-0 w-full h-16 bg-gradient-to-b from-slate-50 to-transparent"></div>
-                            <img src={user.photoURL} className="w-24 h-24 rounded-full border-4 border-white shadow-lg mb-4 relative z-10" />
-                            <h2 className="text-xl font-bold text-slate-800">{user.displayName}</h2>
-                            <p className="text-sm text-slate-500">{user.email}</p>
-                            <button onClick={onLogout} className="mt-6 text-xs font-bold text-red-600 bg-red-50 px-5 py-2.5 rounded-full hover:bg-red-100 flex items-center gap-2 transition-colors">
-                                <Icons.LogOut size={16} /> ออกจากระบบ
-                            </button>
-                        </div>
+                        <div className="p-6 flex flex-col items-center bg-white relative">
+                             {/* Profile Header */}
+                            <div className="absolute top-4 right-4 z-20">
+                                <button onClick={() => setIsEditing(!isEditing)} className="p-2 bg-slate-100 rounded-full text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors">
+                                    {isEditing ? <Icons.X size={18} /> : <Icons.Settings size={18} />}
+                                </button>
+                            </div>
 
-                        <div className="flex-1 overflow-y-auto p-5">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 ml-1">ประวัติใบเสนอราคา ({savedQuotes.length})</h4>
-                            {loading ? <p className="text-center text-slate-400 text-sm py-10">กำลังโหลด...</p> : (
-                                <div className="space-y-3">
-                                    {savedQuotes.length === 0 && <div className="text-center py-10 text-slate-400 text-sm bg-white rounded-2xl border border-dashed border-slate-200">ไม่มีประวัติการบันทึก</div>}
-                                    {savedQuotes.map(q => (
-                                        <div key={q.id} onClick={() => onLoad(q.items)} className="bg-white p-4 rounded-2xl shadow-sm border border-white hover:border-red-200 cursor-pointer transition-all hover:shadow-md hover:-translate-y-1 group">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <h3 className="font-bold text-slate-800 text-sm group-hover:text-red-600 transition-colors">{q.name || 'ไม่มีชื่อ'}</h3>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">{new Date(q.createdAt).toLocaleDateString('th-TH')}</span>
-                                                        <span className="text-[10px] text-slate-400">{q.items.length} รายการ</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-col items-end gap-2">
-                                                    <span className="font-bold text-red-600 text-sm">{formatCurrency(q.total)}</span>
-                                                    <button onClick={(e) => deleteQuote(e, q.id)} className="p-1.5 text-slate-300 hover:text-white hover:bg-red-500 rounded-lg transition-colors"><Icons.Trash2 size={16} /></button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                            <img src={isEditing ? editData.photoURL : (userProfile?.photoURL || user.photoURL)} className="w-24 h-24 rounded-full border-4 border-white shadow-lg mb-4 object-cover" />
+                            
+                            {!isEditing ? (
+                                <>
+                                    <h2 className="text-xl font-bold text-slate-800">{userProfile?.displayName || user.displayName}</h2>
+                                    {userProfile?.shopName && <p className="text-sm font-bold text-red-600 mt-1">{userProfile.shopName}</p>}
+                                    <p className="text-sm text-slate-500 mt-1">{user.email}</p>
+                                    <button onClick={onLogout} className="mt-4 text-xs font-bold text-red-600 bg-red-50 px-5 py-2 rounded-full hover:bg-red-100 flex items-center gap-2 transition-colors">
+                                        <Icons.LogOut size={16} /> ออกจากระบบ
+                                    </button>
+                                </>
+                            ) : (
+                                <div className="w-full space-y-3 mt-2">
+                                    <AdminTextInput label="ชื่อที่แสดง" value={editData.displayName} onChange={v => setEditData({...editData, displayName: v})} />
+                                    <AdminTextInput label="ชื่อร้านค้า (แสดงบนใบเสนอราคา)" value={editData.shopName} onChange={v => setEditData({...editData, shopName: v})} />
+                                    <AdminTextInput label="ที่อยู่ร้าน" value={editData.address} onChange={v => setEditData({...editData, address: v})} />
+                                    <AdminTextInput label="เบอร์โทรศัพท์" value={editData.phone} onChange={v => setEditData({...editData, phone: v})} />
+                                    <AdminTextInput label="URL รูปโปรไฟล์" value={editData.photoURL} onChange={v => setEditData({...editData, photoURL: v})} />
+                                    <button onClick={handleSave} className="w-full bg-red-600 text-white font-bold py-2 rounded-xl mt-2 hover:bg-red-700">บันทึกข้อมูล</button>
                                 </div>
                             )}
                         </div>
+
+                        {!isEditing && (
+                            <div className="flex-1 overflow-y-auto p-5">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 ml-1">ประวัติใบเสนอราคา ({savedQuotes.length})</h4>
+                                {loading ? <p className="text-center text-slate-400 text-sm py-10">กำลังโหลด...</p> : (
+                                    <div className="space-y-3">
+                                        {savedQuotes.length === 0 && <div className="text-center py-10 text-slate-400 text-sm bg-white rounded-2xl border border-dashed border-slate-200">ไม่มีประวัติการบันทึก</div>}
+                                        {savedQuotes.map(q => (
+                                            <div key={q.id} onClick={() => onLoad(q.items)} className="bg-white p-4 rounded-2xl shadow-sm border border-white hover:border-red-200 cursor-pointer transition-all hover:shadow-md hover:-translate-y-1 group">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h3 className="font-bold text-slate-800 text-sm group-hover:text-red-600 transition-colors">{q.name || 'ไม่มีชื่อ'}</h3>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md">{new Date(q.createdAt).toLocaleDateString('th-TH')}</span>
+                                                            <span className="text-[10px] text-slate-400">{q.items.length} รายการ</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        <span className="font-bold text-red-600 text-sm">{formatCurrency(q.total)}</span>
+                                                        <button onClick={(e) => deleteQuote(e, q.id)} className="p-1.5 text-slate-300 hover:text-white hover:bg-red-500 rounded-lg transition-colors"><Icons.Trash2 size={16} /></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             );
         };
 
-        const CalculatorPage = ({ config, items, setItems, user, onLogin }) => {
+        const CalculatorPage = ({ config, items, setItems, user, onLogin, userProfile }) => {
             const [calcMode, setCalcMode] = useState('external');
             const [showQuote, setShowQuote] = useState(false);
             const [errorMsg, setErrorMsg] = useState('');
@@ -678,16 +737,21 @@
                             <button onClick={() => setShowQuote(true)} className="w-full bg-slate-800 text-white px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg hover:bg-slate-700 active:scale-95 transition-all mt-4 hover:-translate-y-1"><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button>
                         </div>
                     )}
-                    {showQuote && <QuotationModal items={items} onClose={() => setShowQuote(false)} config={config} />}
+                    {showQuote && <QuotationModal items={items} onClose={() => setShowQuote(false)} config={config} userProfile={userProfile} />}
                 </div>
             );
         };
 
-        const QuotationModal = ({ items, onClose, config }) => {
+        const QuotationModal = ({ items, onClose, config, userProfile }) => {
             const [showVat, setShowVat] = useState(false);
             const [showMethod, setShowMethod] = useState(false);
             const [customerName, setCustomerName] = useState('');
             const quoteRef = useRef(null);
+            
+            // Logic to use User Profile Data or Default Config
+            const displayCompanyName = userProfile?.shopName || config.companyName || 'SUNNY BLIND SYSTEM';
+            const displayCompanyDesc = userProfile?.address || config.companyDesc || 'จำหน่ายและติดตั้งผ้าม่าน มู่ลี่ วอลเปเปอร์';
+            const displayCompanyContact = userProfile?.phone || config.companyContact || 'โทร: 02-123-4567';
             
             const subtotal = items.reduce((sum, item) => sum + item.grandTotal, 0);
             const vatAmount = showVat ? subtotal * 0.07 : 0;
@@ -728,7 +792,11 @@
                                 <div className="flex justify-between items-start mb-8">
                                     <div className="flex items-center gap-4">
                                         <img src={config.logoUrl} className="h-20 w-auto object-contain" alt="Company Logo" onError={(e) => e.target.style.display = 'none'} />
-                                        <div><h1 className="text-2xl font-bold text-slate-800">{config.companyName || 'SUNNY BLIND SYSTEM'}</h1><p className="text-sm text-slate-500">{config.companyDesc || 'จำหน่ายและติดตั้งผ้าม่าน มู่ลี่ วอลเปเปอร์'}</p><p className="text-sm text-slate-500">{config.companyContact || 'โทร: 02-123-4567'}</p></div>
+                                        <div>
+                                            <h1 className="text-2xl font-bold text-slate-800">{displayCompanyName}</h1>
+                                            <p className="text-sm text-slate-500">{displayCompanyDesc}</p>
+                                            <p className="text-sm text-slate-500">{displayCompanyContact}</p>
+                                        </div>
                                     </div>
                                     <div className="text-right"><div className="text-3xl font-bold text-slate-200 uppercase tracking-widest mb-2">Quotation</div><div className="text-sm font-bold text-slate-600">ใบเสนอราคา</div><div className="text-sm text-slate-500 mt-1">วันที่: {new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</div></div>
                                 </div>
