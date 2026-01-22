@@ -106,7 +106,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- 1. THEME DEFINITIONS & CONFIG ---
+        // --- 1. THEME DEFINITIONS ---
         const THEMES = {
             default: {
                 id: 'default',
@@ -156,7 +156,25 @@
 
         const formatCurrency = (amount) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 2 }).format(amount);
         const generateId = () => Math.random().toString(36).substr(2, 9);
-        const DEFAULT_CONFIG = { logoUrl: 'https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png', companyName: 'SUNNY BLIND SYSTEM', companyDesc: 'จำหน่ายและติดตั้งผ้าม่าน มู่ลี่ วอลเปเปอร์', companyContact: 'โทร: 02-123-4567', hardwarePrice: 1956, topRailPrice: 200, bottomRailPrice: 150, slingPrice: 138, fabricFactor: 1.2, basswoodPrice: 789, fauxwoodPrice: 750, showExternal: true, showInternal: true, showWooden: true, showAluminum: true, theme: 'default' };
+        const DEFAULT_CONFIG = { 
+            logoUrl: 'https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png', 
+            companyName: 'SUNNY BLIND SYSTEM', 
+            companyDesc: 'จำหน่ายและติดตั้งผ้าม่าน มู่ลี่ วอลเปเปอร์', 
+            companyContact: 'โทร: 02-123-4567', 
+            hardwarePrice: 1956, 
+            topRailPrice: 200, 
+            bottomRailPrice: 150, 
+            slingPrice: 138, 
+            fabricFactor: 1.2, 
+            basswoodPrice: 789, 
+            fauxwoodPrice: 750, 
+            aluminumWoodPrice: 675, // เพิ่มค่าเริ่มต้นสำหรับมู่ลี่อลูมิเนียมลายไม้
+            showExternal: true, 
+            showInternal: true, 
+            showWooden: true, 
+            showAluminum: true, 
+            theme: 'default' 
+        };
 
         // --- 2. ICONS ---
         const Icon = ({ path, size = 24, className = "" }) => ( <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg> );
@@ -203,14 +221,7 @@
             <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100 shadow-sm"><span className="text-sm font-bold text-slate-700">{label}</span><button onClick={() => onChange(!value)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${value ? theme.toggleActive : 'bg-slate-200'}`}><span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${value ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
         );
         const NavButton = ({ active, onClick, icon, label, theme }) => (
-            <button 
-                onClick={onClick}
-                className={`flex flex-col items-center justify-center w-full h-full rounded-2xl transition-all duration-300 group py-1
-                ${active ? theme.activeTab : theme.inactiveTab}`}
-            >
-                {icon}
-                <span className={`text-xs font-bold mt-0.5`}>{label}</span>
-            </button>
+            <button onClick={onClick} className={`flex flex-col items-center justify-center w-full h-full rounded-2xl transition-all duration-300 group py-1 ${active ? theme.activeTab : theme.inactiveTab}`}>{icon}<span className={`text-[11px] font-bold mt-0.5 transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>{label}</span></button>
         );
 
         // --- 4. MODALS (Defined Before Usage) ---
@@ -468,7 +479,7 @@
                                         </select>
                                     </div>
 
-                                    <AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} theme={theme} /><AdminTextInput label="ชื่อร้าน/บริษัท" value={editConfig.companyName} onChange={(v) => setEditConfig({...editConfig, companyName: v})} theme={theme} /><AdminTextInput label="รายละเอียด/ที่อยู่" value={editConfig.companyDesc} onChange={(v) => setEditConfig({...editConfig, companyDesc: v})} theme={theme} /><AdminTextInput label="เบอร์โทรติดต่อ" value={editConfig.companyContact} onChange={(v) => setEditConfig({...editConfig, companyContact: v})} theme={theme} /><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6">เมนูคำนวณ</h3><div className="space-y-2"><AdminToggle label="ม่านภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} theme={theme} /><AdminToggle label="ม่านภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} theme={theme} /><AdminToggle label="มู่ลี่ไม้" value={editConfig.showWooden} onChange={v => setEditConfig({...editConfig, showWooden: v})} theme={theme} /><AdminToggle label="มู่ลี่อลูมิเนียม" value={editConfig.showAluminum} onChange={v => setEditConfig({...editConfig, showAluminum: v})} theme={theme} /></div><h3 className="text-sm font-bold text-blue-500 uppercase tracking-wider mt-6">ราคากลาง (External)</h3><AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางบน" value={editConfig.topRailPrice} onChange={(v) => setEditConfig({...editConfig, topRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางล่าง" value={editConfig.bottomRailPrice} onChange={(v) => setEditConfig({...editConfig, bottomRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคาสลิงข้าง" value={editConfig.slingPrice} onChange={(v) => setEditConfig({...editConfig, slingPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ตัวคูณสูตรผ้า" value={editConfig.fabricFactor} onChange={(v) => setEditConfig({...editConfig, fabricFactor: v})} unit="เท่า" step={0.1} theme={theme} /><h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider mt-6">ราคากลาง (Wooden)</h3><AdminInput label="ราคา BASSWOOD" value={editConfig.basswoodPrice} onChange={(v) => setEditConfig({...editConfig, basswoodPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคา FAUX WOOD" value={editConfig.fauxwoodPrice} onChange={(v) => setEditConfig({...editConfig, fauxwoodPrice: v})} unit="บาท" theme={theme} /></div><div className="flex gap-3 mt-8 pt-4 border-t"><button onClick={handleReset} className="p-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><Icons.RotateCcw size={20} /></button><button onClick={() => onSave(editConfig)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 ${theme.btnPrimary}`}><Icons.Save size={18} /> บันทึกออนไลน์</button></div><button onClick={() => setLoggedIn(false)} className="w-full mt-3 text-xs text-red-400 hover:text-red-500 flex items-center justify-center gap-1"><Icons.LogOut size={12} /> ออกจากระบบ</button></div>
+                                    <AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} theme={theme} /><AdminTextInput label="ชื่อร้าน/บริษัท" value={editConfig.companyName} onChange={(v) => setEditConfig({...editConfig, companyName: v})} theme={theme} /><AdminTextInput label="รายละเอียด/ที่อยู่" value={editConfig.companyDesc} onChange={(v) => setEditConfig({...editConfig, companyDesc: v})} theme={theme} /><AdminTextInput label="เบอร์โทรติดต่อ" value={editConfig.companyContact} onChange={(v) => setEditConfig({...editConfig, companyContact: v})} theme={theme} /><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6">เมนูคำนวณ</h3><div className="space-y-2"><AdminToggle label="ม่านภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} theme={theme} /><AdminToggle label="ม่านภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} theme={theme} /><AdminToggle label="มู่ลี่ไม้" value={editConfig.showWooden} onChange={v => setEditConfig({...editConfig, showWooden: v})} theme={theme} /><AdminToggle label="มู่ลี่อลูมิเนียม" value={editConfig.showAluminum} onChange={v => setEditConfig({...editConfig, showAluminum: v})} theme={theme} /></div><h3 className="text-sm font-bold text-blue-500 uppercase tracking-wider mt-6">ราคากลาง (External)</h3><AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางบน" value={editConfig.topRailPrice} onChange={(v) => setEditConfig({...editConfig, topRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางล่าง" value={editConfig.bottomRailPrice} onChange={(v) => setEditConfig({...editConfig, bottomRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคาสลิงข้าง" value={editConfig.slingPrice} onChange={(v) => setEditConfig({...editConfig, slingPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ตัวคูณสูตรผ้า" value={editConfig.fabricFactor} onChange={(v) => setEditConfig({...editConfig, fabricFactor: v})} unit="เท่า" step={0.1} theme={theme} /><h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider mt-6">ราคากลาง (Wooden)</h3><AdminInput label="ราคา BASSWOOD" value={editConfig.basswoodPrice} onChange={(v) => setEditConfig({...editConfig, basswoodPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคา FAUX WOOD" value={editConfig.fauxwoodPrice} onChange={(v) => setEditConfig({...editConfig, fauxwoodPrice: v})} unit="บาท" theme={theme} /><h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mt-6">ราคากลาง (Aluminum)</h3><AdminInput label="ราคาลายไม้ (ต่อ ตร.ม.)" value={editConfig.aluminumWoodPrice} onChange={(v) => setEditConfig({...editConfig, aluminumWoodPrice: v})} unit="บาท" theme={theme} /></div><div className="flex gap-3 mt-8 pt-4 border-t"><button onClick={handleReset} className="p-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><Icons.RotateCcw size={20} /></button><button onClick={() => onSave(editConfig)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 ${theme.btnPrimary}`}><Icons.Save size={18} /> บันทึกออนไลน์</button></div><button onClick={() => setLoggedIn(false)} className="w-full mt-3 text-xs text-red-400 hover:text-red-500 flex items-center justify-center gap-1"><Icons.LogOut size={12} /> ออกจากระบบ</button></div>
                         )}
                     </div>
                 </div>
@@ -565,14 +576,14 @@
                     if (alumSystem === 'wood_pattern') {
                         const w_m = w_cm / 100;
                         const h_m = h_cm / 100;
-                        const unitPrice = w_m * h_m * 675; 
+                        const unitPrice = w_m * h_m * config.aluminumWoodPrice; 
                         
                         price = unitPrice; 
                         totalPerUnit = unitPrice;
                         
                         typeName = 'มู่ลี่อลูมิเนียม (ลายไม้)';
                         details = {
-                             mainFormula: `${w_m.toFixed(2)}m x ${h_m.toFixed(2)}m x 675 = ${formatCurrency(unitPrice)}`,
+                             mainFormula: `${w_m.toFixed(2)}m x ${h_m.toFixed(2)}m x ${config.aluminumWoodPrice} = ${formatCurrency(unitPrice)}`,
                              sumFormula: `${formatCurrency(unitPrice)} x ${qty} ชุด = ${formatCurrency(unitPrice * qty)}`
                         };
                     } else {
@@ -723,7 +734,7 @@
                                             onClick={() => setAlumSystem('wood_pattern')}
                                             className={`w-full py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'wood_pattern' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}
                                         >
-                                            ลายไม้ (ตร.ม. ละ 675)
+                                            ลายไม้ (ตร.ม. ละ {config.aluminumWoodPrice})
                                         </button>
                                     </div>
                                 </div>
