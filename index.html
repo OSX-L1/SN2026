@@ -106,7 +106,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- THEME DEFINITIONS ---
+        // --- 1. THEME DEFINITIONS (Must be defined first) ---
         const THEMES = {
             default: {
                 id: 'default',
@@ -150,7 +150,7 @@
             }
         };
 
-        // ... (Manifest & Firebase Config - Same as before)
+        // --- 2. Manifest & Firebase Config ---
         const manifestData = { "name": "SUNNY Blind System", "short_name": "SUNNY", "start_url": ".", "display": "standalone", "background_color": "#f5f5f7", "theme_color": "#ffffff", "orientation": "portrait", "icons": [{ "src": "https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png", "sizes": "192x192", "type": "image/png" }, { "src": "https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png", "sizes": "512x512", "type": "image/png" }] };
         const manifestBlob = new Blob([JSON.stringify(manifestData)], {type: 'application/manifest+json'});
         document.querySelector('#manifest-placeholder').setAttribute('href', URL.createObjectURL(manifestBlob));
@@ -159,7 +159,7 @@
         let db = null; let auth = null; let appId = 'sunny-blind-system';
         try { let finalConfig = YOUR_FIREBASE_CONFIG; if (typeof __firebase_config !== 'undefined' && __firebase_config) { try { const envConfig = JSON.parse(__firebase_config); if (Object.keys(envConfig).length > 0) finalConfig = envConfig; } catch(e){} } if (typeof __app_id !== 'undefined') appId = __app_id; if (typeof firebase !== 'undefined') { if (!firebase.apps.length) firebase.initializeApp(finalConfig); auth = firebase.auth(); db = firebase.firestore(); } } catch (e) { console.error(e); }
 
-        // --- Icons ---
+        // --- 3. Icons ---
         const Icon = ({ path, size = 24, className = "" }) => ( <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg> );
         const Icons = {
             Home: (p) => <Icon {...p} path={<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></>} />,
@@ -195,6 +195,7 @@
         const formatCurrency = (amount) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 2 }).format(amount);
         const generateId = () => Math.random().toString(36).substr(2, 9);
 
+        // --- 4. Default Config ---
         const DEFAULT_CONFIG = {
             logoUrl: 'https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png',
             companyName: 'SUNNY BLIND SYSTEM',
@@ -210,10 +211,11 @@
             showExternal: true,
             showInternal: true,
             showWooden: true,
-            showAluminum: true, // Add new toggle
-            theme: 'default' 
+            showAluminum: true,
+            theme: 'default'
         };
 
+        // --- 5. Main Component ---
         const App = () => {
             const [activeTab, setActiveTab] = useState('home');
             const [config, setConfig] = useState(DEFAULT_CONFIG);
@@ -225,10 +227,8 @@
             const [isFirebaseReady, setIsFirebaseReady] = useState(false);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
             const [items, setItems] = useState([]);
-            // State for Aluminum Price Table
             const [aluminumPrices, setAluminumPrices] = useState(null);
 
-            // Theme Derived Constants
             const currentTheme = THEMES[config.theme] || THEMES.default;
             
             useEffect(() => {
@@ -283,7 +283,7 @@
                     setUser(currentUser);
                     if (currentUser) {
                         setIsFirebaseReady(true);
-                        // Config Listener
+                        
                         const configRef = db.doc(`artifacts/${appId}/public/data/config/main`);
                         configRef.onSnapshot((docSnap) => {
                             if (docSnap.exists) setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() });
@@ -295,7 +295,6 @@
                             setUserProfile(doc.exists ? doc.data() : null);
                         });
                         
-                        // Load Aluminum Prices
                         const aluminumRef = db.doc(`artifacts/${appId}/public/data/price_tables/aluminum`);
                         aluminumRef.onSnapshot(doc => {
                            if(doc.exists) setAluminumPrices(doc.data());
@@ -425,6 +424,7 @@
             </button>
         );
 
+        // --- Pages ---
         const HomePage = ({ setActiveTab, config, onInstall, theme }) => (
             <div className="flex flex-col items-center justify-center h-full pt-32 p-8 text-center fade-in pb-32">
                 <div className="relative mb-8 group">
@@ -469,10 +469,9 @@
             </div>
         );
         
-        // ... (ProfileModal, CalculatorPage, QuotationModal components)
-
         const CalculatorPage = ({ config, items, setItems, user, onLogin, userProfile, theme, aluminumPrices }) => {
             const [calcMode, setCalcMode] = useState('external');
+            const [alumSystem, setAlumSystem] = useState('standard');
             const [showQuote, setShowQuote] = useState(false);
             const [errorMsg, setErrorMsg] = useState('');
             const [formData, setFormData] = useState({ width: '', height: '', price: '', qty: '1', side: 'ขวา', woodType: 'BASSWOOD' });
@@ -482,7 +481,7 @@
                 if (config.showExternal) modes.push({ id: 'external', label: 'ม่านภายนอก', icon: <Icons.Sun size={24} /> });
                 if (config.showInternal) modes.push({ id: 'internal', label: 'ม่านภายใน', icon: <Icons.Roller size={24} /> });
                 if (config.showWooden) modes.push({ id: 'wooden', label: 'มู่ลี่ไม้', icon: <Icons.Blinds size={24} /> });
-                if (config.showAluminum) modes.push({ id: 'aluminum', label: 'มู่ลี่อลูมิเนียม', icon: <Icons.Blinds size={24} /> }); // Using Blinds icon for now
+                if (config.showAluminum) modes.push({ id: 'aluminum', label: 'มู่ลี่อลูมิเนียม', icon: <Icons.Blinds size={24} /> }); 
                 return modes;
             }, [config]);
 
@@ -496,9 +495,7 @@
 
             const handleInputChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
             
-            // Helper for Aluminum Rounding
             const roundToStep = (val) => {
-                 // Round 0-4 down, 5-9 up to nearest 10
                  return Math.round(val / 10) * 10;
             };
 
@@ -514,31 +511,56 @@
                 let details = {};
                 let typeName = "";
                 
-                // Specific logic for Aluminum
                 if (calcMode === 'aluminum') {
-                    if (!aluminumPrices || !aluminumPrices.table) return setErrorMsg('ไม่พบข้อมูลราคา (กรุณาอัปโหลดไฟล์ CSV)');
-                    
-                    const roundedW = roundToStep(w_cm);
-                    const roundedH = roundToStep(h_cm);
-                    
-                    // Lookup in table: table[height][width]
-                    // Need to check if keys exist
-                    if (aluminumPrices.table[roundedH] && aluminumPrices.table[roundedH][roundedW]) {
-                        price = aluminumPrices.table[roundedH][roundedW];
+                    if (alumSystem === 'wood_pattern') {
+                        const w_m = w_cm / 100;
+                        const h_m = h_cm / 100;
+                        const unitPrice = w_m * h_m * 675; 
+                        
+                        price = unitPrice; 
+                        totalPerUnit = unitPrice;
+                        
+                        typeName = 'มู่ลี่อลูมิเนียม (ลายไม้)';
+                        details = {
+                             mainFormula: `${w_m.toFixed(2)}m x ${h_m.toFixed(2)}m x 675 = ${formatCurrency(unitPrice)}`,
+                             sumFormula: `${formatCurrency(unitPrice)} x ${qty} ชุด = ${formatCurrency(unitPrice * qty)}`
+                        };
                     } else {
-                        // Attempt to find closest if exact match fails or just error out
-                        return setErrorMsg(`ไม่พบราคาสำหรับขนาด ${roundedW}x${roundedH} (ปัดเศษแล้ว)`);
+                        if (!aluminumPrices || !aluminumPrices.table) return setErrorMsg('ไม่พบข้อมูลราคา (กรุณาอัปโหลดไฟล์ CSV)');
+                        
+                        const roundedW = roundToStep(w_cm);
+                        const roundedH = roundToStep(h_cm);
+                        
+                        let basePrice = 0;
+                        if (aluminumPrices.table[roundedH] && aluminumPrices.table[roundedH][roundedW]) {
+                            basePrice = aluminumPrices.table[roundedH][roundedW];
+                        } else {
+                            return setErrorMsg(`ไม่พบราคาสำหรับขนาด ${roundedW}x${roundedH} (ปัดเศษแล้ว)`);
+                        }
+
+                        let netPrice = 0;
+                        let discountInfo = "";
+                        
+                        if (alumSystem === 'standard') {
+                             const priceAfter60 = basePrice * 0.40;
+                             netPrice = priceAfter60 * 0.95;
+                             discountInfo = "ลด 60% + 5%";
+                             typeName = 'มู่ลี่อลูมิเนียม (ระบบธรรมดา)';
+                        } else {
+                             netPrice = basePrice * 0.40;
+                             discountInfo = "ลด 60%";
+                             typeName = 'มู่ลี่อลูมิเนียม (ระบบโซ่วน)';
+                        }
+                        
+                        price = netPrice;
+                        totalPerUnit = netPrice;
+                        
+                        details = {
+                             mainFormula: `ขนาด ${w_cm}x${h_cm} => ปัดเป็น ${roundedW}x${roundedH} = ${formatCurrency(basePrice)}`,
+                             sumFormula: `ราคาตาราง ${formatCurrency(basePrice)} (${discountInfo}) = ${formatCurrency(netPrice)}`
+                        };
                     }
-                    
-                    typeName = 'มู่ลี่อลูมิเนียม';
-                    totalPerUnit = price;
-                    details = {
-                         mainFormula: `ขนาด ${w_cm}x${h_cm} => ปัดเป็น ${roundedW}x${roundedH} = ${formatCurrency(price)}`,
-                         sumFormula: `ราคาตามตาราง = ${formatCurrency(price)}`
-                    };
-                    
                 } else {
-                    // Existing Logic
                     if (calcMode === 'wooden') {
                         price = (formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice);
                     } else {
@@ -627,6 +649,36 @@
                     {/* Calculator Form */}
                     {availableModes.length > 0 && (
                         <div className={`bg-white rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white p-6 mb-6 relative overflow-hidden scale-in`}>
+                            
+                            {/* Aluminum System Selector */}
+                            {calcMode === 'aluminum' && (
+                                <div className="mb-6">
+                                    <label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>เลือกระบบ</label>
+                                    <div className={`flex flex-col gap-2`}>
+                                         <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setAlumSystem('standard')}
+                                                className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'standard' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}
+                                            >
+                                                ธรรมดา (ลด 60%+5%)
+                                            </button>
+                                            <button 
+                                                onClick={() => setAlumSystem('chain')}
+                                                className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'chain' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}
+                                            >
+                                                โซ่วน (ลด 60%)
+                                            </button>
+                                         </div>
+                                         <button 
+                                            onClick={() => setAlumSystem('wood_pattern')}
+                                            className={`w-full py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'wood_pattern' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}
+                                        >
+                                            ลายไม้ (ตร.ม. ละ 675)
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             {calcMode === 'wooden' && (
                                 <div className="mb-6">
                                     <label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>ชนิดไม้</label>
@@ -719,7 +771,6 @@
         
         // ... (QuotationModal) ... 
         
-        // Modal for Profile
         const ProfileModal = ({ user, userProfile, onClose, onLogout, onLoad, onSaveProfile, theme }) => {
             const [savedQuotes, setSavedQuotes] = useState([]);
             const [loading, setLoading] = useState(true);
