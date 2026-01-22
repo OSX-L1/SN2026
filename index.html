@@ -203,7 +203,14 @@
             <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100 shadow-sm"><span className="text-sm font-bold text-slate-700">{label}</span><button onClick={() => onChange(!value)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${value ? theme.toggleActive : 'bg-slate-200'}`}><span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ease-in-out ${value ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
         );
         const NavButton = ({ active, onClick, icon, label, theme }) => (
-            <button onClick={onClick} className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 group ${active ? theme.activeTab : theme.inactiveTab}`}>{icon}<span className={`text-[9px] font-medium mt-0.5 transition-opacity ${active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>{label}</span></button>
+            <button 
+                onClick={onClick}
+                className={`flex flex-col items-center justify-center w-full h-full rounded-2xl transition-all duration-300 group py-1
+                ${active ? theme.activeTab : theme.inactiveTab}`}
+            >
+                {icon}
+                <span className={`text-xs font-bold mt-0.5`}>{label}</span>
+            </button>
         );
 
         // --- 4. MODALS (Defined Before Usage) ---
@@ -677,12 +684,12 @@
                                 <button 
                                     key={mode.id} 
                                     onClick={() => setCalcMode(mode.id)} 
-                                    className={`bento-card relative overflow-hidden rounded-2xl p-3 flex flex-col items-center justify-center gap-2 h-24 border ${calcMode === mode.id ? `bg-white shadow-lg ring-1 ${theme.inputRing}` : 'bg-white border-white shadow-sm hover:shadow-md'}`}
+                                    className={`bento-card relative overflow-hidden rounded-2xl p-3 flex flex-col items-center justify-center gap-2 h-auto py-2 border ${calcMode === mode.id ? `bg-white shadow-lg ring-1 ${theme.inputRing}` : 'bg-white border-white shadow-sm hover:shadow-md'}`}
                                 >
-                                    <div className={`p-2.5 rounded-full transition-colors ${calcMode === mode.id ? `${theme.bgSoft} ${theme.primary}` : `bg-slate-50 text-slate-400 group-hover:text-slate-600`}`}>
+                                    <div className={`p-1.5 rounded-full transition-colors ${calcMode === mode.id ? `${theme.bgSoft} ${theme.primary}` : `bg-slate-50 text-slate-400 group-hover:text-slate-600`}`}>
                                         {mode.icon}
                                     </div>
-                                    <span className={`text-xs font-bold transition-colors ${calcMode === mode.id ? theme.primary : theme.textSub}`}>{mode.label}</span>
+                                    <span className={`text-[11px] font-bold transition-colors ${calcMode === mode.id ? theme.primary : theme.textSub}`}>{mode.label}</span>
                                     {calcMode === mode.id && <div className={`absolute inset-x-0 bottom-0 h-1 ${theme.toggleActive}`}></div>}
                                 </button>
                             ))}
