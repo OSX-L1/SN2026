@@ -195,7 +195,6 @@
         const formatCurrency = (amount) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 2 }).format(amount);
         const generateId = () => Math.random().toString(36).substr(2, 9);
 
-        // --- 4. Default Config ---
         const DEFAULT_CONFIG = {
             logoUrl: 'https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png',
             companyName: 'SUNNY BLIND SYSTEM',
@@ -215,7 +214,6 @@
             theme: 'default'
         };
 
-        // --- 5. Main Component ---
         const App = () => {
             const [activeTab, setActiveTab] = useState('home');
             const [config, setConfig] = useState(DEFAULT_CONFIG);
@@ -424,7 +422,6 @@
             </button>
         );
 
-        // --- Pages ---
         const HomePage = ({ setActiveTab, config, onInstall, theme }) => (
             <div className="flex flex-col items-center justify-center h-full pt-32 p-8 text-center fade-in pb-32">
                 <div className="relative mb-8 group">
