@@ -759,8 +759,11 @@
                 if (value.length > 1) {
                     const lowerVal = value.toLowerCase();
                     const matches = data.filter(row => {
+                        // Fix: Search in both Column A (Code) and Name
+                        const keys = Object.keys(row);
+                        const code = String(row[keys[0]] || '');
                         const name = getName(row);
-                        return name && String(name).toLowerCase().includes(lowerVal);
+                        return code.toLowerCase().includes(lowerVal) || (name && String(name).toLowerCase().includes(lowerVal));
                     }).slice(0, 10);
                     setSuggestions(matches);
                     setShowSuggestions(true);
@@ -771,8 +774,9 @@
             };
 
             const handleSuggestionClick = (row) => {
-                const name = getName(row);
-                setSearchQuery(name);
+                const keys = Object.keys(row);
+                const code = row[keys[0]]; // Use Code
+                setSearchQuery(code);
                 setSearchResult(row);
                 setError('');
                 setSuggestions([]);
@@ -855,16 +859,23 @@
                         {/* Suggestions List */}
                         {showSuggestions && suggestions.length > 0 && (
                             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
-                                {suggestions.map((row, idx) => (
+                                {suggestions.map((row, idx) => {
+                                    const keys = Object.keys(row);
+                                    const code = row[keys[0]];
+                                    const name = getName(row);
+                                    return (
                                     <div 
                                         key={idx}
                                         onClick={() => handleSuggestionClick(row)}
                                         className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors"
                                     >
-                                        <span className="font-bold text-slate-700">{getName(row)}</span>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-700">{code}</span>
+                                            <span className="text-[10px] text-slate-400">{name}</span>
+                                        </div>
                                         <span className="text-xs text-slate-400">เลือก</span>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         )}
 
