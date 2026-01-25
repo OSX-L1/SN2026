@@ -169,11 +169,11 @@
             basswoodPrice: 789, 
             fauxwoodPrice: 750, 
             aluminumWoodPrice: 675,
-            pvc85SolidPrice: 320, // ราคาเริ่มต้น PVC
+            pvc85SolidPrice: 320, 
             pvc85JapanPrice: 699,
             pvc10SolidPrice: 290,
             pvc10JapanPrice: 699,
-            pvcEuroPrice: 730, // เพิ่มราคากลางสำหรับใบยูโร
+            pvcEuroPrice: 730, 
             showExternal: true, 
             showInternal: true, 
             showWooden: true, 
@@ -237,7 +237,8 @@
             const [showVat, setShowVat] = useState(false);
             const [showMethod, setShowMethod] = useState(false);
             const [customerName, setCustomerName] = useState('');
-            const [customerAddress, setCustomerAddress] = useState(''); // NEW STATE FOR ADDRESS
+            const [customerAddress, setCustomerAddress] = useState('');
+            const [generating, setGenerating] = useState(false);
             const quoteRef = useRef(null);
             
             const displayCompanyName = userProfile?.shopName || config.companyName || 'SUNNY BLIND SYSTEM';
@@ -248,21 +249,114 @@
             const vatAmount = showVat ? subtotal * 0.07 : 0;
             const grandTotal = subtotal + vatAmount;
 
+            // --- IMPROVED CANVAS GENERATOR (Fixes Mobile Crop Issue) ---
+            const generateCanvas = async () => {
+                if (!quoteRef.current || !window.html2canvas) {
+                    alert('Libraries not loaded yet');
+                    return null;
+                }
+
+                // 1. Create a hidden container that forces A4 size
+                // This ensures we capture the "Desktop" version even on mobile
+                const cloneContainer = document.createElement('div');
+                cloneContainer.style.width = '210mm';
+                cloneContainer.style.minHeight = '297mm';
+                cloneContainer.style.position = 'fixed';
+                cloneContainer.style.top = '-10000px';
+                cloneContainer.style.left = '0';
+                cloneContainer.style.zIndex = '-1';
+                cloneContainer.style.background = 'white';
+                document.body.appendChild(cloneContainer);
+
+                // 2. Clone the element
+                const clone = quoteRef.current.cloneNode(true);
+                
+                // 3. Force styles on the clone to override mobile media queries
+                clone.style.width = '210mm';
+                clone.style.minHeight = '297mm';
+                clone.style.padding = '15mm';
+                clone.style.fontSize = ''; // Reset font size
+                clone.style.margin = '0';
+                clone.style.boxShadow = 'none';
+                clone.style.transform = 'none';
+
+                // 4. Handle Textareas (convert to div for full visibility)
+                const originalTextareas = quoteRef.current.querySelectorAll('textarea');
+                const clonedTextareas = clone.querySelectorAll('textarea');
+                
+                originalTextareas.forEach((orig, index) => {
+                    const cloned = clonedTextareas[index];
+                    if (cloned) {
+                        const div = document.createElement('div');
+                        // Copy computed styles
+                        const computed = window.getComputedStyle(orig);
+                        div.style.cssText = computed.cssText;
+                        div.style.height = 'auto'; // Auto expand
+                        div.style.minHeight = orig.style.height;
+                        div.style.resize = 'none';
+                        div.style.overflow = 'visible';
+                        div.style.whiteSpace = 'pre-wrap';
+                        div.style.border = '1px solid #e2e8f0';
+                        div.innerText = orig.value; // Set text
+                        
+                        if (cloned.parentNode) {
+                            cloned.parentNode.replaceChild(div, cloned);
+                        }
+                    }
+                });
+
+                // 5. Handle Inputs (ensure values are copied)
+                const originalInputs = quoteRef.current.querySelectorAll('input[type="text"]');
+                const clonedInputs = clone.querySelectorAll('input[type="text"]');
+                originalInputs.forEach((orig, index) => {
+                    if (clonedInputs[index]) clonedInputs[index].setAttribute('value', orig.value);
+                });
+
+                cloneContainer.appendChild(clone);
+
+                // 6. Capture with specific windowWidth to trick media queries
+                try {
+                    const canvas = await window.html2canvas(clone, {
+                        scale: 2, // High resolution
+                        useCORS: true,
+                        windowWidth: 1280, // Simulate desktop
+                        width: 794, // Approx 210mm @ 96 DPI
+                    });
+                    
+                    document.body.removeChild(cloneContainer);
+                    return canvas;
+                } catch (error) {
+                    console.error("Capture failed:", error);
+                    document.body.removeChild(cloneContainer);
+                    return null;
+                }
+            };
+
             const handleDownloadPDF = async () => {
-                if (!quoteRef.current || !window.html2canvas || !window.jspdf) return alert('Loading libs...');
-                const canvas = await window.html2canvas(quoteRef.current, { scale: 2, useCORS: true });
+                setGenerating(true);
+                const canvas = await generateCanvas();
+                if (!canvas) { setGenerating(false); return; }
+                
                 const imgData = canvas.toDataURL('image/png');
                 const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
                 const pdfWidth = pdf.internal.pageSize.getWidth();
                 const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                
                 pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
                 pdf.save(`Quotation_${Date.now()}.pdf`);
+                setGenerating(false);
             };
 
             const handleSaveImage = async () => {
-                if (!quoteRef.current || !window.html2canvas) return;
-                const canvas = await window.html2canvas(quoteRef.current, { scale: 2, useCORS: true });
-                const link = document.createElement('a'); link.download = `Quotation_${Date.now()}.png`; link.href = canvas.toDataURL(); link.click();
+                setGenerating(true);
+                const canvas = await generateCanvas();
+                if (!canvas) { setGenerating(false); return; }
+
+                const link = document.createElement('a');
+                link.download = `Quotation_${Date.now()}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                setGenerating(false);
             };
 
             return (
@@ -317,7 +411,14 @@
                                 <div className="mt-12 flex justify-between text-center"><div className="mt-8"><div className="w-40 border-b border-slate-300 mb-2"></div><p className="text-xs text-slate-400">ผู้เสนอราคา</p></div><div className="mt-8"><div className="w-40 border-b border-slate-300 mb-2"></div><p className="text-xs text-slate-400">ผู้อนุมัติสั่งซื้อ</p></div></div>
                             </div>
                         </div>
-                        <div className="p-5 bg-white border-t flex flex-col md:flex-row gap-4"><button onClick={handleDownloadPDF} className={`flex-1 ${theme.btnPrimary} py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base transition-colors hover:-translate-y-1`}><Icons.Download size={20} /> ดาวน์โหลด PDF (A4)</button><button onClick={handleSaveImage} className={`flex-1 ${theme.btnSecondary} py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base transition-colors hover:-translate-y-1`}><Icons.Image size={20} /> บันทึกเป็นรูปภาพ</button></div>
+                        <div className="p-5 bg-white border-t flex flex-col md:flex-row gap-4">
+                            <button onClick={handleDownloadPDF} disabled={generating} className={`flex-1 ${theme.btnPrimary} py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base transition-colors hover:-translate-y-1 disabled:opacity-50`}>
+                                {generating ? 'กำลังสร้าง PDF...' : <><Icons.Download size={20} /> ดาวน์โหลด PDF (A4)</>}
+                            </button>
+                            <button onClick={handleSaveImage} disabled={generating} className={`flex-1 ${theme.btnSecondary} py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md text-base transition-colors hover:-translate-y-1 disabled:opacity-50`}>
+                                {generating ? 'กำลังบันทึก...' : <><Icons.Image size={20} /> บันทึกเป็นรูปภาพ</>}
+                            </button>
+                        </div>
                     </div>
                 </div>
             );
