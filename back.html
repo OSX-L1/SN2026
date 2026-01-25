@@ -688,6 +688,8 @@
             const [searchResult, setSearchResult] = useState(null);
             const [error, setError] = useState('');
             const [showDebug, setShowDebug] = useState(false); // Debug toggle
+            const [suggestions, setSuggestions] = useState([]);
+            const [showSuggestions, setShowSuggestions] = useState(false);
 
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1132498145&single=true&output=csv';
 
@@ -750,6 +752,33 @@
                 return processed;
             };
 
+            const handleInputChange = (e) => {
+                const value = e.target.value;
+                setSearchQuery(value);
+                
+                if (value.length > 1) {
+                    const lowerVal = value.toLowerCase();
+                    const matches = data.filter(row => {
+                        const name = getName(row);
+                        return name && String(name).toLowerCase().includes(lowerVal);
+                    }).slice(0, 10);
+                    setSuggestions(matches);
+                    setShowSuggestions(true);
+                } else {
+                    setSuggestions([]);
+                    setShowSuggestions(false);
+                }
+            };
+
+            const handleSuggestionClick = (row) => {
+                const name = getName(row);
+                setSearchQuery(name);
+                setSearchResult(row);
+                setError('');
+                setSuggestions([]);
+                setShowSuggestions(false);
+            };
+
             const handleSearch = (e) => {
                 e.preventDefault();
                 if (!searchQuery.trim()) return;
@@ -757,6 +786,7 @@
                 const found = data.find(row => Object.values(row).some(val => val && val.toString().toLowerCase().includes(query)));
                 if (found) { setSearchResult(found); setError(''); }
                 else { setSearchResult(null); setError(`ไม่พบรหัส: ${searchQuery}`); }
+                setShowSuggestions(false);
             };
 
             const displayColumns = [
@@ -800,12 +830,13 @@
                         <h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกมู่ลี่ไม้</h2>
                     </div>
 
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6`}>
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}>
                         <form onSubmit={handleSearch} className="relative">
                             <input 
                                 type="text" 
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={handleInputChange}
+                                onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)}
                                 placeholder="พิมพ์รหัสสินค้า (เช่น B35-36)" 
                                 className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`}
                             />
@@ -820,6 +851,23 @@
                                 {loading ? '...' : 'ค้นหา'}
                             </button>
                         </form>
+                        
+                        {/* Suggestions List */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
+                                {suggestions.map((row, idx) => (
+                                    <div 
+                                        key={idx}
+                                        onClick={() => handleSuggestionClick(row)}
+                                        className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors"
+                                    >
+                                        <span className="font-bold text-slate-700">{getName(row)}</span>
+                                        <span className="text-xs text-slate-400">เลือก</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}
                     </div>
 
@@ -871,6 +919,8 @@
             const [searchResult, setSearchResult] = useState(null);
             const [error, setError] = useState('');
             const [showDebug, setShowDebug] = useState(false);
+            const [suggestions, setSuggestions] = useState([]);
+            const [showSuggestions, setShowSuggestions] = useState(false);
 
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1019928538&single=true&output=csv';
 
@@ -892,6 +942,33 @@
                 });
             }, []);
 
+            const handleInputChange = (e) => {
+                const value = e.target.value;
+                setSearchQuery(value);
+                
+                if (value.length > 1) {
+                    const lowerVal = value.toLowerCase();
+                    const matches = data.filter(row => {
+                        const code = String(row[0] || '').toLowerCase(); // Column A
+                        return code.includes(lowerVal);
+                    }).slice(0, 10);
+                    setSuggestions(matches);
+                    setShowSuggestions(true);
+                } else {
+                    setSuggestions([]);
+                    setShowSuggestions(false);
+                }
+            };
+
+            const handleSuggestionClick = (row) => {
+                const code = String(row[0] || ''); // Column A
+                setSearchQuery(code);
+                setSearchResult(row);
+                setError('');
+                setSuggestions([]);
+                setShowSuggestions(false);
+            };
+
             const handleSearch = (e) => {
                 e.preventDefault();
                 if (!searchQuery.trim()) return;
@@ -903,6 +980,7 @@
                 
                 if (found) { setSearchResult(found); setError(''); }
                 else { setSearchResult(null); setError(`ไม่พบรหัส: ${searchQuery}`); }
+                setShowSuggestions(false);
             };
 
             return (
@@ -914,12 +992,13 @@
                         <h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกม่านม้วน</h2>
                     </div>
 
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6`}>
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}>
                         <form onSubmit={handleSearch} className="relative">
                             <input 
                                 type="text" 
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={handleInputChange}
+                                onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)}
                                 placeholder="พิมพ์รหัสสินค้า..." 
                                 className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`}
                             />
@@ -934,6 +1013,26 @@
                                 {loading ? '...' : 'ค้นหา'}
                             </button>
                         </form>
+
+                        {/* Suggestions List */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
+                                {suggestions.map((row, idx) => (
+                                    <div 
+                                        key={idx}
+                                        onClick={() => handleSuggestionClick(row)}
+                                        className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors"
+                                    >
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-slate-700">{row[0]}</span> {/* Code */}
+                                            <span className="text-[10px] text-slate-400">{row[1]}</span> {/* Name */}
+                                        </div>
+                                        <span className="text-xs text-slate-400">เลือก</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}
                     </div>
 
