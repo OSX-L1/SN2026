@@ -696,28 +696,49 @@
 
             const renderStockGrid = () => {
                  if (!searchResult) return null;
-                 const headerMap = { 'ความสูง': '2.00 เมตร', 'ม.': '2.20 เมตร', '_1 ม.': '2.40 เมตร', '_2 ม.': '2.60 เมตร', '_3 ม.': '2.80 เมตร', '_4 ม.': '3.00 เมตร', '_5 ม.': '3.20 เมตร', '_6 ม.': '3.30 เมตร', '_7 ม.': '3.50 เมตร', '_8 ม.': '3.70 เมตร', '_9 ม.': '3.75 เมตร' };
-                 const targetKeys = Object.keys(headerMap);
-                 const availableKeys = targetKeys.filter(k => searchResult[k] !== undefined);
                  
-                 let keysToRender = availableKeys.length > 0 ? availableKeys : Object.keys(searchResult).filter(key => {
+                 // IMPROVED: Filter keys dynamically instead of hardcoding
+                 // This ensures all columns in the CSV are shown if they look like stock numbers
+                 const ignoredKeys = ['code', 'รหัส', 'product', 'name', 'ชื่อ', 'description', 'item', 'no', 'ลำดับ', 'id', 'key', 'category', 'type', 'brand', 'รุ่น', 'สี'];
+                 
+                 let stockKeys = Object.keys(searchResult).filter(key => {
                      const lowerKey = key.toLowerCase();
-                     const ignoreKeys = ['code', 'รหัส', 'product', 'name', 'ชื่อ', 'description', 'item', 'no', 'ลำดับ'];
-                     return !ignoreKeys.some(ignore => lowerKey.includes(ignore));
+                     const val = searchResult[key];
+                     // Must not be an ignored key AND must have a value
+                     return !ignoredKeys.some(ignore => lowerKey.includes(ignore)) && 
+                            val !== undefined && 
+                            val !== null && 
+                            String(val).trim() !== '';
+                 });
+
+                 // Sort keys intelligently (try to parse numbers from headers like "2.00" or "2.00 ม.")
+                 stockKeys.sort((a, b) => {
+                     const extractNum = (str) => {
+                         const match = str.match(/(\d+(\.\d+)?)/);
+                         return match ? parseFloat(match[0]) : 9999;
+                     };
+                     return extractNum(a) - extractNum(b);
                  });
 
                  return (
                      <div className="p-5 grid grid-cols-3 gap-3">
-                         {keysToRender.map((key, index) => {
+                         {stockKeys.map((key, index) => {
                              const val = searchResult[key];
-                             const numVal = parseFloat(String(val).replace(/,/g,''));
+                             // Clean up value (remove commas)
+                             const cleanVal = String(val).replace(/,/g,'').trim();
+                             const numVal = parseFloat(cleanVal);
                              const hasStock = !isNaN(numVal) && numVal > 0;
-                             const label = headerMap[key] || key;
+                             
+                             // Auto-format Label: If it's just a number like "2.00", add "เมตร"
+                             let label = key;
+                             if (!label.includes('ม') && !label.includes('m') && !label.includes('ft') && !isNaN(parseFloat(label))) {
+                                 label += ' เมตร';
+                             }
 
                              return (
                                  <div key={index} className={`flex flex-col items-center justify-center p-3 rounded-2xl border ${hasStock ? 'bg-green-50 border-green-100' : 'bg-slate-50 border-slate-100'}`}>
                                      <span className={`text-[12px] font-bold ${theme.textMain} mb-1 truncate w-full text-center`}>{label}</span>
-                                     <span className={`text-xl font-bold ${hasStock ? 'text-green-600' : 'text-slate-300'}`}>{val || '-'}</span>
+                                     <span className={`text-xl font-bold ${hasStock ? 'text-green-600' : 'text-slate-300'}`}>{cleanVal || '-'}</span>
                                  </div>
                              )
                          })}
