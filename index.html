@@ -403,19 +403,8 @@
                 </p>
                 
                 <div className="flex flex-col gap-4 w-full max-w-xs">
-                    <button 
-                      onClick={() => setActiveTab('calculator')}
-                      className={`${theme.btnPrimary} px-8 py-4 rounded-2xl font-bold text-lg active:scale-95 transition-all flex justify-center items-center gap-3 hover:-translate-y-1 shadow-lg`}
-                    >
-                      <Icons.Calculator size={22} /> เริ่มคำนวณราคา
-                    </button>
-                    
-                    <button 
-                      onClick={onInstall}
-                      className={`${theme.btnSecondary} px-8 py-4 rounded-2xl font-bold text-lg shadow-md active:scale-95 transition-all flex justify-center items-center gap-3 hover:-translate-y-1`}
-                    >
-                      <Icons.Smartphone size={22} className={theme.icon} /> ติดตั้งแอปพลิเคชัน
-                    </button>
+                    <button onClick={() => setActiveTab('calculator')} className={`${theme.btnPrimary} px-8 py-4 rounded-2xl font-bold text-lg active:scale-95 transition-all flex justify-center items-center gap-3 hover:-translate-y-1 shadow-lg`}><Icons.Calculator size={22} /> เริ่มคำนวณราคา</button>
+                    <button onClick={onInstall} className={`${theme.btnSecondary} px-8 py-4 rounded-2xl font-bold text-lg shadow-md active:scale-95 transition-all flex justify-center items-center gap-3 hover:-translate-y-1`}><Icons.Smartphone size={22} className={theme.icon} /> ติดตั้งแอปพลิเคชัน</button>
                 </div>
             </div>
         );
@@ -603,7 +592,7 @@
                                 <div className={`${theme.bgSoft} p-5 border-b border-white/50`}>
                                     <h3 className={`text-2xl font-bold ${theme.textMain}`}>{getName(searchResult)}</h3>
                                 </div>
-                                <div className="p-5 grid grid-cols-3 gap-3">
+                                <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-3">
                                     {displayColumns.map((col, i) => { 
                                         const val = getValue(searchResult, col.keys); 
                                         const hasStock = val !== '-' && parseFloat(val) > 0; 
@@ -779,30 +768,18 @@
 
             const renderStockGrid = () => {
                  if (!searchResult) return null;
-
-                 const headerMap = {
-                    'ความสูง': '2.00 เมตร', 'ม.': '2.20 เมตร', '_1 ม.': '2.40 เมตร', '_2 ม.': '2.60 เมตร', '_3 ม.': '2.80 เมตร',
-                    '_4 ม.': '3.00 เมตร', '_5 ม.': '3.20 เมตร', '_6 ม.': '3.30 เมตร', '_7 ม.': '3.50 เมตร', '_8 ม.': '3.70 เมตร',
-                    '_9 ม.': '3.75 เมตร'
-                 };
-
+                 const headerMap = { 'ความสูง': '2.00 เมตร', 'ม.': '2.20 เมตร', '_1 ม.': '2.40 เมตร', '_2 ม.': '2.60 เมตร', '_3 ม.': '2.80 เมตร', '_4 ม.': '3.00 เมตร', '_5 ม.': '3.20 เมตร', '_6 ม.': '3.30 เมตร', '_7 ม.': '3.50 เมตร', '_8 ม.': '3.70 เมตร', '_9 ม.': '3.75 เมตร' };
                  const targetKeys = Object.keys(headerMap);
                  const availableKeys = targetKeys.filter(k => searchResult[k] !== undefined);
-                 
-                 let keysToRender = availableKeys.length > 0 ? availableKeys : Object.keys(searchResult).filter(key => {
-                     const lowerKey = key.toLowerCase();
-                     const ignoreKeys = ['code', 'รหัส', 'product', 'name', 'ชื่อ', 'description', 'item', 'no', 'ลำดับ'];
-                     return !ignoreKeys.some(ignore => lowerKey.includes(ignore));
-                 });
+                 let keysToRender = availableKeys.length > 0 ? availableKeys : Object.keys(searchResult).filter(key => { const lowerKey = key.toLowerCase(); const ignoreKeys = ['code', 'รหัส', 'product', 'name', 'ชื่อ', 'description', 'item', 'no', 'ลำดับ']; return !ignoreKeys.some(ignore => lowerKey.includes(ignore)); });
 
                  return (
-                     <div className="p-5 grid grid-cols-3 gap-3">
+                     <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-3">
                          {keysToRender.map((key, index) => {
                              const val = searchResult[key];
                              const numVal = parseFloat(String(val).replace(/,/g,''));
                              const hasStock = !isNaN(numVal) && numVal > 0;
                              const label = headerMap[key] || key;
-
                              return (
                                  <div key={index} className={`relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-md ${hasStock ? 'bg-white border-green-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
                                      <div className="flex justify-between items-start mb-2">
@@ -823,11 +800,7 @@
             return (
                 <div className="pt-20 px-5 pb-40 fade-in h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-6"><button onClick={onBack} className={`p-2 rounded-full border bg-white ${theme.border} ${theme.textSub}`}><Icons.ChevronDown className="rotate-90" size={20} /></button><h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกฉาก PVC</h2></div>
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}>
-                        <form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>
-                        {showSuggestions && suggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(getCode(row)); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{getCode(row)}</span><span className="text-[10px] text-slate-400">{getName(row)}</span></div></div>))}</div>)}
-                        {error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}
-                    </div>
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>{showSuggestions && suggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(getCode(row)); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{getCode(row)}</span><span className="text-[10px] text-slate-400">{getName(row)}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
                     {searchResult && (
                         <div className="animate-scale-in">
                             <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border}`}>
