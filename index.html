@@ -972,9 +972,55 @@
             const currentTheme = THEMES[config.theme] || THEMES.default;
             
             useEffect(() => { document.body.style.backgroundColor = config.theme === 'apple' ? '#F5F5F7' : '#f8fafc'; }, [config.theme]);
-            useEffect(() => { window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); setDeferredPrompt(e); }); }, []);
             
-            const handleInstallApp = async () => { if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') setDeferredPrompt(null); } else { alert('วิธีติดตั้ง:\nAndroid: กดปุ่ม "ติดตั้ง" ใน Browser\niOS: กด Share > "เพิ่มไปยังหน้าจอโฮม"\nPC: กดไอคอนติดตั้งที่แถบ URL'); } };
+            // --- FIX: Dynamic PWA Manifest & Install Prompt ---
+            useEffect(() => {
+                // 1. สร้าง Manifest แบบ Dynamic เพื่อให้ Browser รู้ว่าเป็น PWA
+                const manifest = {
+                    name: "SUNNY Blind System",
+                    short_name: "SUNNY Blinds",
+                    start_url: window.location.href,
+                    display: "standalone",
+                    background_color: "#ffffff",
+                    theme_color: "#ffffff",
+                    icons: [
+                        { src: "https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png", sizes: "192x192", type: "image/png" },
+                        { src: "https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png", sizes: "512x512", type: "image/png" }
+                    ]
+                };
+                const stringManifest = JSON.stringify(manifest);
+                const blob = new Blob([stringManifest], {type: 'application/json'});
+                const manifestURL = URL.createObjectURL(blob);
+                const linkTag = document.getElementById('manifest-placeholder');
+                if(linkTag) linkTag.setAttribute('href', manifestURL);
+
+                // 2. ดักจับ Event สำหรับติดตั้ง
+                const handleBeforeInstallPrompt = (e) => {
+                    e.preventDefault(); // ป้องกันไม่ให้ Browser แสดงแถบอัตโนมัติ (เราจะทำปุ่มเอง)
+                    setDeferredPrompt(e);
+                    console.log("พร้อมติดตั้งแอปแล้ว");
+                };
+
+                window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+                return () => {
+                    window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+                };
+            }, []);
+            
+            const handleInstallApp = async () => { 
+                if (deferredPrompt) { 
+                    deferredPrompt.prompt(); 
+                    const { outcome } = await deferredPrompt.userChoice; 
+                    if (outcome === 'accepted') {
+                        setDeferredPrompt(null);
+                    }
+                } else { 
+                    // Fallback สำหรับ iOS หรือกรณีที่ Browser ไม่รองรับ Auto Prompt
+                    alert('หากไม่มีหน้าต่างเด้งขึ้นมา:\n- Android: กดเมนูสามจุดมุมขวาบน > "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"\n- iOS: กดปุ่ม Share (แชร์) ด้านล่าง > เลือก "เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)\n- PC: กดไอคอนติดตั้งที่ด้านขวาของแถบ URL'); 
+                } 
+            };
+
             const handleLogin = async () => { if (!auth) return alert("ระบบยังไม่พร้อมใช้งาน"); try { const provider = new firebase.auth.GoogleAuthProvider(); await auth.signInWithPopup(provider); } catch (error) { console.error(error); alert("เข้าสู่ระบบล้มเหลว: " + error.message); } };
             const handleLogout = async () => { if (confirm("ต้องการออกจากระบบ?")) { await auth.signOut(); setShowProfile(false); setItems([]); } };
 
