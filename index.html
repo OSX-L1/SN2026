@@ -118,7 +118,42 @@
 
         const formatCurrency = (amount) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 2 }).format(amount);
         const generateId = () => Math.random().toString(36).substr(2, 9);
-        const DEFAULT_CONFIG = { logoUrl: 'https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png', companyName: 'SUNNY BLIND SYSTEM', companyDesc: 'จำหน่ายและติดตั้งผ้าม่าน มู่ลี่ วอลเปเปอร์', companyContact: 'โทร: 02-123-4567', hardwarePrice: 1956, topRailPrice: 200, bottomRailPrice: 150, slingPrice: 138, fabricFactor: 1.2, basswoodPrice: 789, fauxwoodPrice: 750, aluminumWoodPrice: 675, pvc85SolidPrice: 320, pvc85JapanPrice: 699, pvc10SolidPrice: 290, pvc10JapanPrice: 699, pvcEuroPrice: 730, showExternal: true, showInternal: true, showWooden: true, showAluminum: true, showPVC: true, theme: 'default' };
+        const DEFAULT_CONFIG = { 
+            logoUrl: 'https://img2.pic.in.th/SUNNY-LOGO54c76f9eedf06c96.png', 
+            companyName: 'SUNNY BLIND SYSTEM', 
+            companyDesc: 'จำหน่ายและติดตั้งผ้าม่าน มู่ลี่ วอลเปเปอร์', 
+            companyContact: 'โทร: 02-123-4567', 
+            hardwarePrice: 1956, 
+            topRailPrice: 200, 
+            bottomRailPrice: 150, 
+            slingPrice: 138, 
+            fabricFactor: 1.2, 
+            basswoodPrice: 789, 
+            fauxwoodPrice: 750, 
+            aluminumWoodPrice: 675, 
+            pvc85SolidPrice: 320, 
+            pvc85JapanPrice: 699, 
+            pvc10SolidPrice: 290, 
+            pvc10JapanPrice: 699, 
+            pvcEuroPrice: 730,
+            // Rails
+            railHospitalPrice: 185,
+            railHospitalTapePrice: 260,
+            railCeilingBracketPrice: 110,
+            railTesWhiteBlackPrice: 185,
+            railTesWoodPrice: 195,
+            railNanoPrice: 220,
+            railMManualPrice: 130,
+            railMCordPrice: 150,
+            
+            showExternal: true, 
+            showInternal: true, 
+            showWooden: true, 
+            showAluminum: true, 
+            showPVC: true,
+            showRail: true, 
+            theme: 'default' 
+        };
 
         // --- COMPONENTS ---
         const Icon = ({ path, size = 24, className = "" }) => ( <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg> );
@@ -407,7 +442,7 @@
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 fade-in">
                     <div className={`bg-white rounded-[2rem] w-full max-w-sm overflow-hidden shadow-2xl relative flex flex-col max-h-[85vh] scale-in`}>
                         <div className="p-5 border-b border-slate-100 flex justify-between items-center"><h3 className={`font-bold text-lg ${theme.textMain}`}>ตั้งค่าระบบ</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><Icons.X size={24} className="text-slate-400" /></button></div>
-                        {!isLoggedIn ? (<div className="p-8 text-center"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Lock size={32} className="text-slate-500" /></div><h2 className="text-xl font-bold text-slate-800 mb-6">เข้าสู่ระบบหลังบ้าน</h2><input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="กรอกรหัสผ่าน" className="input-apple w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-lg font-bold mb-4" />{msg && <p className="text-red-500 text-sm mb-4">{msg}</p>}<button onClick={handleLogin} className={`w-full py-3 rounded-xl font-bold transition-colors ${theme.btnPrimary}`}>เข้าสู่ระบบ</button></div>) : (<div className="p-6 flex-1 overflow-y-auto"><div className="space-y-5"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">ฐานข้อมูลราคา (Price Tables)</h3><div className="p-4 border border-dashed border-slate-300 rounded-xl bg-slate-50 text-center"><h4 className="font-bold text-slate-700 mb-2">มู่ลี่อลูมิเนียม (Aluminum)</h4><p className="text-xs text-slate-500 mb-3">{aluminumPrices ? '✅ มีข้อมูลในระบบแล้ว' : '❌ ยังไม่มีข้อมูล'}</p><input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={handleCSVUpload} /><button onClick={() => fileInputRef.current.click()} className="text-xs bg-white border border-slate-300 px-3 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2 mx-auto"><Icons.Upload size={14} /> อัปโหลด CSV มู่ลี่อลูมิเนียม</button><p className="text-[10px] text-slate-400 mt-2">รูปแบบ CSV: แถวแรกเป็นความกว้าง คอลัมน์แรกเป็นความสูง</p></div><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">ข้อมูลร้านค้า</h3><div className="mb-4"><label className="text-xs font-bold text-slate-400 mb-1.5 block ml-1">เลือกธีม (Theme)</label><select value={editConfig.theme} onChange={(e) => setEditConfig({...editConfig, theme: e.target.value})} className="input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700">{Object.values(THEMES).map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}</select></div><AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} theme={theme} /><AdminTextInput label="ชื่อร้าน/บริษัท" value={editConfig.companyName} onChange={(v) => setEditConfig({...editConfig, companyName: v})} theme={theme} /><AdminTextInput label="รายละเอียด/ที่อยู่" value={editConfig.companyDesc} onChange={(v) => setEditConfig({...editConfig, companyDesc: v})} theme={theme} /><AdminTextInput label="เบอร์โทรติดต่อ" value={editConfig.companyContact} onChange={(v) => setEditConfig({...editConfig, companyContact: v})} theme={theme} /><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6">เมนูคำนวณ</h3><div className="space-y-2"><AdminToggle label="ม่านภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} theme={theme} /><AdminToggle label="ม่านภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} theme={theme} /><AdminToggle label="มู่ลี่ไม้" value={editConfig.showWooden} onChange={v => setEditConfig({...editConfig, showWooden: v})} theme={theme} /><AdminToggle label="มู่ลี่อลูมิเนียม" value={editConfig.showAluminum} onChange={v => setEditConfig({...editConfig, showAluminum: v})} theme={theme} /><AdminToggle label="ฉากกั้นห้อง PVC" value={editConfig.showPVC} onChange={v => setEditConfig({...editConfig, showPVC: v})} theme={theme} /></div><h3 className="text-sm font-bold text-blue-500 uppercase tracking-wider mt-6">ราคากลาง (External)</h3><AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางบน" value={editConfig.topRailPrice} onChange={(v) => setEditConfig({...editConfig, topRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางล่าง" value={editConfig.bottomRailPrice} onChange={(v) => setEditConfig({...editConfig, bottomRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคาสลิงข้าง" value={editConfig.slingPrice} onChange={(v) => setEditConfig({...editConfig, slingPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ตัวคูณสูตรผ้า" value={editConfig.fabricFactor} onChange={(v) => setEditConfig({...editConfig, fabricFactor: v})} unit="เท่า" step={0.1} theme={theme} /><h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider mt-6">ราคากลาง (Wooden)</h3><AdminInput label="ราคา BASSWOOD" value={editConfig.basswoodPrice} onChange={(v) => setEditConfig({...editConfig, basswoodPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคา FAUX WOOD" value={editConfig.fauxwoodPrice} onChange={(v) => setEditConfig({...editConfig, fauxwoodPrice: v})} unit="บาท" theme={theme} /><h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mt-6">ราคากลาง (Aluminum)</h3><AdminInput label="ราคาลายไม้ (ต่อ ตร.ม.)" value={editConfig.aluminumWoodPrice} onChange={(v) => setEditConfig({...editConfig, aluminumWoodPrice: v})} unit="บาท" theme={theme} /><h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mt-6">ราคากลาง (PVC)</h3><AdminInput label="ใบ 8.5cm แบบทึบ" value={editConfig.pvc85SolidPrice} onChange={(v) => setEditConfig({...editConfig, pvc85SolidPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ใบ 8.5cm ญี่ปุ่น" value={editConfig.pvc85JapanPrice} onChange={(v) => setEditConfig({...editConfig, pvc85JapanPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ใบ 10cm แบบทึบ" value={editConfig.pvc10SolidPrice} onChange={(v) => setEditConfig({...editConfig, pvc10SolidPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ใบ 10cm ญี่ปุ่น" value={editConfig.pvc10JapanPrice} onChange={(v) => setEditConfig({...editConfig, pvc10JapanPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ใบ 12.3cm ยูโร (รวม)" value={editConfig.pvcEuroPrice} onChange={(v) => setEditConfig({...editConfig, pvcEuroPrice: v})} unit="บาท" theme={theme} /></div><div className="flex gap-3 mt-8 pt-4 border-t"><button onClick={handleReset} className="p-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><Icons.RotateCcw size={20} /></button><button onClick={() => onSave(editConfig)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 ${theme.btnPrimary}`}><Icons.Save size={18} /> บันทึกออนไลน์</button></div><button onClick={() => setLoggedIn(false)} className="w-full mt-3 text-xs text-red-400 hover:text-red-500 flex items-center justify-center gap-1"><Icons.LogOut size={12} /> ออกจากระบบ</button></div>)}
+                        {!isLoggedIn ? (<div className="p-8 text-center"><div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4"><Icons.Lock size={32} className="text-slate-500" /></div><h2 className="text-xl font-bold text-slate-800 mb-6">เข้าสู่ระบบหลังบ้าน</h2><input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="กรอกรหัสผ่าน" className="input-apple w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-center text-lg font-bold mb-4" />{msg && <p className="text-red-500 text-sm mb-4">{msg}</p>}<button onClick={handleLogin} className={`w-full py-3 rounded-xl font-bold transition-colors ${theme.btnPrimary}`}>เข้าสู่ระบบ</button></div>) : (<div className="p-6 flex-1 overflow-y-auto"><div className="space-y-5"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">ฐานข้อมูลราคา (Price Tables)</h3><div className="p-4 border border-dashed border-slate-300 rounded-xl bg-slate-50 text-center"><h4 className="font-bold text-slate-700 mb-2">มู่ลี่อลูมิเนียม (Aluminum)</h4><p className="text-xs text-slate-500 mb-3">{aluminumPrices ? '✅ มีข้อมูลในระบบแล้ว' : '❌ ยังไม่มีข้อมูล'}</p><input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={handleCSVUpload} /><button onClick={() => fileInputRef.current.click()} className="text-xs bg-white border border-slate-300 px-3 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2 mx-auto"><Icons.Upload size={14} /> อัปโหลด CSV มู่ลี่อลูมิเนียม</button><p className="text-[10px] text-slate-400 mt-2">รูปแบบ CSV: แถวแรกเป็นความกว้าง คอลัมน์แรกเป็นความสูง</p></div><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">ข้อมูลร้านค้า</h3><div className="mb-4"><label className="text-xs font-bold text-slate-400 mb-1.5 block ml-1">เลือกธีม (Theme)</label><select value={editConfig.theme} onChange={(e) => setEditConfig({...editConfig, theme: e.target.value})} className="input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700">{Object.values(THEMES).map(t => (<option key={t.id} value={t.id}>{t.name}</option>))}</select></div><AdminTextInput label="ลิงก์รูปโลโก้ (URL)" value={editConfig.logoUrl} onChange={(v) => setEditConfig({...editConfig, logoUrl: v})} theme={theme} /><AdminTextInput label="ชื่อร้าน/บริษัท" value={editConfig.companyName} onChange={(v) => setEditConfig({...editConfig, companyName: v})} theme={theme} /><AdminTextInput label="รายละเอียด/ที่อยู่" value={editConfig.companyDesc} onChange={(v) => setEditConfig({...editConfig, companyDesc: v})} theme={theme} /><AdminTextInput label="เบอร์โทรติดต่อ" value={editConfig.companyContact} onChange={(v) => setEditConfig({...editConfig, companyContact: v})} theme={theme} /><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mt-6">เมนูคำนวณ</h3><div className="space-y-2"><AdminToggle label="ม่านภายนอก" value={editConfig.showExternal} onChange={v => setEditConfig({...editConfig, showExternal: v})} theme={theme} /><AdminToggle label="ม่านภายใน" value={editConfig.showInternal} onChange={v => setEditConfig({...editConfig, showInternal: v})} theme={theme} /><AdminToggle label="มู่ลี่ไม้" value={editConfig.showWooden} onChange={v => setEditConfig({...editConfig, showWooden: v})} theme={theme} /><AdminToggle label="มู่ลี่อลูมิเนียม" value={editConfig.showAluminum} onChange={v => setEditConfig({...editConfig, showAluminum: v})} theme={theme} /><AdminToggle label="ฉากกั้นห้อง PVC" value={editConfig.showPVC} onChange={v => setEditConfig({...editConfig, showPVC: v})} theme={theme} /><AdminToggle label="รางม่าน" value={editConfig.showRail} onChange={v => setEditConfig({...editConfig, showRail: v})} theme={theme} /></div><h3 className="text-sm font-bold text-blue-500 uppercase tracking-wider mt-6">ราคากลาง (External)</h3><AdminInput label="ราคาอุปกรณ์ภายนอก" value={editConfig.hardwarePrice} onChange={(v) => setEditConfig({...editConfig, hardwarePrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางบน" value={editConfig.topRailPrice} onChange={(v) => setEditConfig({...editConfig, topRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคารางล่าง" value={editConfig.bottomRailPrice} onChange={(v) => setEditConfig({...editConfig, bottomRailPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคาสลิงข้าง" value={editConfig.slingPrice} onChange={(v) => setEditConfig({...editConfig, slingPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ตัวคูณสูตรผ้า" value={editConfig.fabricFactor} onChange={(v) => setEditConfig({...editConfig, fabricFactor: v})} unit="เท่า" step={0.1} theme={theme} /><h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider mt-6">ราคากลาง (Wooden)</h3><AdminInput label="ราคา BASSWOOD" value={editConfig.basswoodPrice} onChange={(v) => setEditConfig({...editConfig, basswoodPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ราคา FAUX WOOD" value={editConfig.fauxwoodPrice} onChange={(v) => setEditConfig({...editConfig, fauxwoodPrice: v})} unit="บาท" theme={theme} /><h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mt-6">ราคากลาง (Aluminum)</h3><AdminInput label="ราคาลายไม้ (ต่อ ตร.ม.)" value={editConfig.aluminumWoodPrice} onChange={(v) => setEditConfig({...editConfig, aluminumWoodPrice: v})} unit="บาท" theme={theme} /><h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mt-6">ราคากลาง (PVC)</h3><AdminInput label="ใบ 8.5cm แบบทึบ" value={editConfig.pvc85SolidPrice} onChange={(v) => setEditConfig({...editConfig, pvc85SolidPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ใบ 8.5cm ญี่ปุ่น" value={editConfig.pvc85JapanPrice} onChange={(v) => setEditConfig({...editConfig, pvc85JapanPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ใบ 10cm แบบทึบ" value={editConfig.pvc10SolidPrice} onChange={(v) => setEditConfig({...editConfig, pvc10SolidPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ใบ 10cm ญี่ปุ่น" value={editConfig.pvc10JapanPrice} onChange={(v) => setEditConfig({...editConfig, pvc10JapanPrice: v})} unit="บาท" theme={theme} /><AdminInput label="ใบ 12.3cm ยูโร (รวม)" value={editConfig.pvcEuroPrice} onChange={(v) => setEditConfig({...editConfig, pvcEuroPrice: v})} unit="บาท" theme={theme} /><h3 className="text-sm font-bold text-purple-500 uppercase tracking-wider mt-6">ราคากลาง (Curtain Rails)</h3><AdminInput label="รางโรงพยาบาล" value={editConfig.railHospitalPrice} onChange={(v) => setEditConfig({...editConfig, railHospitalPrice: v})} unit="บาท/ม." theme={theme} /><AdminInput label="รางโรงพยาบาลลอนเทป" value={editConfig.railHospitalTapePrice} onChange={(v) => setEditConfig({...editConfig, railHospitalTapePrice: v})} unit="บาท/ม." theme={theme} /><AdminInput label="แป๊ดยึดเพดาน" value={editConfig.railCeilingBracketPrice} onChange={(v) => setEditConfig({...editConfig, railCeilingBracketPrice: v})} unit="บาท/ชุด" theme={theme} /><AdminInput label="รางลอนเทป TES ขาว/ดำ" value={editConfig.railTesWhiteBlackPrice} onChange={(v) => setEditConfig({...editConfig, railTesWhiteBlackPrice: v})} unit="บาท/ม." theme={theme} /><AdminInput label="รางลอนเทป TES ลายไม้" value={editConfig.railTesWoodPrice} onChange={(v) => setEditConfig({...editConfig, railTesWoodPrice: v})} unit="บาท/ม." theme={theme} /><AdminInput label="รางลอนเทป NANO" value={editConfig.railNanoPrice} onChange={(v) => setEditConfig({...editConfig, railNanoPrice: v})} unit="บาท/ม." theme={theme} /><AdminInput label="ราง M (มือดึง)" value={editConfig.railMManualPrice} onChange={(v) => setEditConfig({...editConfig, railMManualPrice: v})} unit="บาท/ม." theme={theme} /><AdminInput label="ราง M (เชือกดึง)" value={editConfig.railMCordPrice} onChange={(v) => setEditConfig({...editConfig, railMCordPrice: v})} unit="บาท/ม." theme={theme} /></div><div className="flex gap-3 mt-8 pt-4 border-t"><button onClick={handleReset} className="p-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><Icons.RotateCcw size={20} /></button><button onClick={() => onSave(editConfig)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 ${theme.btnPrimary}`}><Icons.Save size={18} /> บันทึกออนไลน์</button></div><button onClick={() => setLoggedIn(false)} className="w-full mt-3 text-xs text-red-400 hover:text-red-500 flex items-center justify-center gap-1"><Icons.LogOut size={12} /> ออกจากระบบ</button></div>)}
                     </div>
                 </div>
             );
@@ -443,6 +478,7 @@
             const [showDebug, setShowDebug] = useState(false); // Debug toggle
             const [suggestions, setSuggestions] = useState([]);
             const [showSuggestions, setShowSuggestions] = useState(false);
+            const [showAll, setShowAll] = useState(false); // New state for View All
 
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1132498145&single=true&output=csv';
 
@@ -583,9 +619,14 @@
                             </button>
                         </form>
                         
+                        {/* View All Button */}
+                        <button onClick={() => setShowAll(true)} disabled={loading || data.length === 0} className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors border ${theme.border} ${theme.textSub} bg-white flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50`}>
+                            <Icons.FileText size={16}/> ดูตารางสต็อกทั้งหมด ({data.length})
+                        </button>
+                        
                         {/* Suggestions List */}
                         {showSuggestions && suggestions.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
+                            <div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
                                 {suggestions.map((row, idx) => {
                                     const keys = Object.keys(row);
                                     const code = row[keys[0]];
@@ -608,6 +649,40 @@
 
                         {error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}
                     </div>
+
+                    {/* View All Modal */}
+                    {showAll && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                            <div className={`bg-white rounded-[2rem] w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                                 <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                                    <h3 className="font-bold text-lg">สต็อกทั้งหมด ({data.length})</h3>
+                                    <button onClick={() => setShowAll(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                                 </div>
+                                 <div className="flex-1 overflow-auto p-0">
+                                    <table className="w-full text-sm border-collapse">
+                                        <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
+                                            <tr>
+                                                <th className="p-3 text-left bg-slate-100">สินค้า</th>
+                                                {displayColumns.map((col, i) => <th key={i} className="p-3 text-center whitespace-nowrap bg-slate-100">{col.label}</th>)}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {data.map((row, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-bold text-slate-700 min-w-[150px]">{getName(row)}<div className="text-[10px] text-slate-400 font-normal font-mono">{row[Object.keys(row)[0]]}</div></td>
+                                                    {displayColumns.map((col, j) => {
+                                                        const val = getValue(row, col.keys);
+                                                        const hasStock = val !== '-' && parseFloat(val) > 0;
+                                                        return <td key={j} className={`p-3 text-center ${hasStock ? 'text-green-600 font-bold bg-green-50/20' : 'text-slate-300'}`}>{val}</td>
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                 </div>
+                            </div>
+                        </div>
+                    )}
 
                     {searchResult && (
                         <div className="animate-scale-in">
@@ -651,6 +726,8 @@
             const [showDebug, setShowDebug] = useState(false);
             const [suggestions, setSuggestions] = useState([]);
             const [showSuggestions, setShowSuggestions] = useState(false);
+            const [showAll, setShowAll] = useState(false);
+
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1019928538&single=true&output=csv';
 
             useEffect(() => { setLoading(true); Papa.parse(SHEET_URL, { download: true, header: false, skipEmptyLines: true, complete: (res) => { setData(res.data); setLoading(false); }, error: () => setLoading(false) }); }, []);
@@ -669,7 +746,45 @@
             return (
                 <div className="pt-20 px-5 pb-40 fade-in h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-6"><button onClick={onBack} className={`p-2 rounded-full border bg-white ${theme.border} ${theme.textSub}`}><Icons.ChevronDown className="rotate-90" size={20} /></button><h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกม่านม้วน</h2></div>
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>{showSuggestions && suggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(row[0]); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{row[0]}</span><span className="text-[10px] text-slate-400">{row[1]}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>
+                    {/* View All Button */}
+                    <button onClick={() => setShowAll(true)} disabled={loading || data.length === 0} className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors border ${theme.border} ${theme.textSub} bg-white flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50`}>
+                        <Icons.FileText size={16}/> ดูตารางสต็อกทั้งหมด ({data.length})
+                    </button>
+                    {showSuggestions && suggestions.length > 0 && (<div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(row[0]); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{row[0]}</span><span className="text-[10px] text-slate-400">{row[1]}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    
+                    {/* View All Modal */}
+                    {showAll && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                            <div className={`bg-white rounded-[2rem] w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                                 <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                                    <h3 className="font-bold text-lg">สต็อกทั้งหมด ({data.length})</h3>
+                                    <button onClick={() => setShowAll(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                                 </div>
+                                 <div className="flex-1 overflow-auto p-0">
+                                    <table className="w-full text-sm border-collapse">
+                                        <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
+                                            <tr>
+                                                <th className="p-3 text-left bg-slate-100">รหัสสินค้า</th>
+                                                <th className="p-3 text-left bg-slate-100">ชื่อสินค้า</th>
+                                                <th className="p-3 text-right bg-slate-100">คงเหลือ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {data.map((row, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-bold text-slate-700 font-mono">{row[0]}</td>
+                                                    <td className="p-3 text-slate-600">{row[1]}</td>
+                                                    <td className={`p-3 text-right font-bold ${parseFloat(row[2]) > 0 ? 'text-green-600' : 'text-red-400'}`}>{row[2]}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                 </div>
+                            </div>
+                        </div>
+                    )}
+
                     {searchResult && (<div className="animate-scale-in"><div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3><div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div><div className="w-full h-px bg-slate-100 mb-6"></div><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3><div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div><div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>{showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}<button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button></div></div>)}
                 </div>
             );
@@ -684,6 +799,8 @@
             const [showDebug, setShowDebug] = useState(false);
             const [suggestions, setSuggestions] = useState([]);
             const [showSuggestions, setShowSuggestions] = useState(false);
+            const [showAll, setShowAll] = useState(false);
+
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1880232984&single=true&output=csv';
 
             useEffect(() => { setLoading(true); Papa.parse(SHEET_URL, { download: true, header: false, skipEmptyLines: true, complete: (res) => { setData(res.data); setLoading(false); }, error: () => setLoading(false) }); }, []);
@@ -702,7 +819,45 @@
             return (
                 <div className="pt-20 px-5 pb-40 fade-in h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-6"><button onClick={onBack} className={`p-2 rounded-full border bg-white ${theme.border} ${theme.textSub}`}><Icons.ChevronDown className="rotate-90" size={20} /></button><h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกมู่ลี่อลูมิเนียม</h2></div>
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>{showSuggestions && suggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(row[0]); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{row[0]}</span><span className="text-[10px] text-slate-400">{row[1]}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>
+                    {/* View All Button */}
+                    <button onClick={() => setShowAll(true)} disabled={loading || data.length === 0} className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors border ${theme.border} ${theme.textSub} bg-white flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50`}>
+                        <Icons.FileText size={16}/> ดูตารางสต็อกทั้งหมด ({data.length})
+                    </button>
+                    {showSuggestions && suggestions.length > 0 && (<div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(row[0]); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{row[0]}</span><span className="text-[10px] text-slate-400">{row[1]}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    
+                    {/* View All Modal */}
+                    {showAll && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                            <div className={`bg-white rounded-[2rem] w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                                 <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                                    <h3 className="font-bold text-lg">สต็อกทั้งหมด ({data.length})</h3>
+                                    <button onClick={() => setShowAll(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                                 </div>
+                                 <div className="flex-1 overflow-auto p-0">
+                                    <table className="w-full text-sm border-collapse">
+                                        <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
+                                            <tr>
+                                                <th className="p-3 text-left bg-slate-100">รหัสสินค้า</th>
+                                                <th className="p-3 text-left bg-slate-100">ชื่อสินค้า</th>
+                                                <th className="p-3 text-right bg-slate-100">คงเหลือ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {data.map((row, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-bold text-slate-700 font-mono">{row[0]}</td>
+                                                    <td className="p-3 text-slate-600">{row[1]}</td>
+                                                    <td className={`p-3 text-right font-bold ${parseFloat(row[2]) > 0 ? 'text-green-600' : 'text-red-400'}`}>{row[2]}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                 </div>
+                            </div>
+                        </div>
+                    )}
+
                     {searchResult && (<div className="animate-scale-in"><div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3><div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div><div className="w-full h-px bg-slate-100 mb-6"></div><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3><div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div><div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>{showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}<button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button></div></div>)}
                 </div>
             );
@@ -717,6 +872,7 @@
             const [showDebug, setShowDebug] = useState(false);
             const [suggestions, setSuggestions] = useState([]);
             const [showSuggestions, setShowSuggestions] = useState(false);
+            const [showAll, setShowAll] = useState(false);
 
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1230787558&single=true&output=csv';
 
@@ -748,6 +904,25 @@
             const getCode = (row) => { const keys = Object.keys(row); const codeKey = keys.find(k => ['code', 'รหัส'].some(s => k.toLowerCase().includes(s))) || keys[0]; return row[codeKey] || ''; };
             const handleInputChange = (e) => { const val = e.target.value; setSearchQuery(val); if (val.length > 1) { const lower = val.toLowerCase(); setSuggestions(data.filter(row => { const code = String(getCode(row)).toLowerCase(); const name = String(getName(row)).toLowerCase(); return code.includes(lower) || name.includes(lower); }).slice(0, 10)); setShowSuggestions(true); } else { setSuggestions([]); setShowSuggestions(false); } };
             const handleSearch = (e) => { e.preventDefault(); const query = searchQuery.toLowerCase(); const found = data.find(row => String(getCode(row)).toLowerCase().includes(query)); if(found) { setSearchResult(found); setError(''); } else { setSearchResult(null); setError('ไม่พบข้อมูล'); } setShowSuggestions(false); };
+
+            const displayColumns = [
+                 { label: '2.00 ม.', keys: ['2.00 เมตร', 'ความสูง'] },
+                 { label: '2.20 ม.', keys: ['2.20 เมตร', 'ม.'] },
+                 { label: '2.40 ม.', keys: ['2.40 เมตร', '_1 ม.'] },
+                 { label: '2.60 ม.', keys: ['2.60 เมตร', '_2 ม.'] },
+                 { label: '2.80 ม.', keys: ['2.80 เมตร', '_3 ม.'] },
+                 { label: '3.00 ม.', keys: ['3.00 เมตร', '_4 ม.'] },
+                 { label: '3.20 ม.', keys: ['3.20 เมตร', '_5 ม.'] },
+                 { label: '3.30 ม.', keys: ['3.30 เมตร', '_6 ม.'] },
+                 { label: '3.50 ม.', keys: ['3.50 เมตร', '_7 ม.'] },
+                 { label: '3.70 ม.', keys: ['3.70 เมตร', '_8 ม.'] },
+                 { label: '3.75 ม.', keys: ['3.75 เมตร', '_9 ม.'] },
+            ];
+
+            const getValue = (row, keys) => {
+                const foundKey = Object.keys(row).find(k => keys.some(search => k.toLowerCase().includes(search.toLowerCase())));
+                return foundKey ? row[foundKey] : '-';
+            };
 
             const renderStockGrid = () => {
                  if (!searchResult) return null;
@@ -783,7 +958,47 @@
             return (
                 <div className="pt-20 px-5 pb-40 fade-in h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-6"><button onClick={onBack} className={`p-2 rounded-full border bg-white ${theme.border} ${theme.textSub}`}><Icons.ChevronDown className="rotate-90" size={20} /></button><h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกฉาก PVC</h2></div>
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>{showSuggestions && suggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(getCode(row)); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{getCode(row)}</span><span className="text-[10px] text-slate-400">{getName(row)}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>
+                    {/* View All Button */}
+                    <button onClick={() => setShowAll(true)} disabled={loading || data.length === 0} className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors border ${theme.border} ${theme.textSub} bg-white flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50`}>
+                        <Icons.FileText size={16}/> ดูตารางสต็อกทั้งหมด ({data.length})
+                    </button>
+                    {showSuggestions && suggestions.length > 0 && (<div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(getCode(row)); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{getCode(row)}</span><span className="text-[10px] text-slate-400">{getName(row)}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    
+                    {/* View All Modal */}
+                    {showAll && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                            <div className={`bg-white rounded-[2rem] w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                                 <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                                    <h3 className="font-bold text-lg">สต็อกทั้งหมด ({data.length})</h3>
+                                    <button onClick={() => setShowAll(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                                 </div>
+                                 <div className="flex-1 overflow-auto p-0">
+                                    <table className="w-full text-sm border-collapse">
+                                        <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
+                                            <tr>
+                                                <th className="p-3 text-left bg-slate-100">สินค้า</th>
+                                                {displayColumns.map((col, i) => <th key={i} className="p-3 text-center whitespace-nowrap bg-slate-100">{col.label}</th>)}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {data.map((row, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-bold text-slate-700 min-w-[150px]">{getName(row)}<div className="text-[10px] text-slate-400 font-normal font-mono">{getCode(row)}</div></td>
+                                                    {displayColumns.map((col, j) => {
+                                                        const val = getValue(row, col.keys);
+                                                        const hasStock = val !== '-' && parseFloat(val) > 0;
+                                                        return <td key={j} className={`p-3 text-center ${hasStock ? 'text-green-600 font-bold bg-green-50/20' : 'text-slate-300'}`}>{val}</td>
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                 </div>
+                            </div>
+                        </div>
+                    )}
+
                     {searchResult && (
                         <div className="animate-scale-in">
                             <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border}`}>
@@ -822,6 +1037,7 @@
             const [pvcType, setPvcType] = useState('8.5_solid'); 
             const [pvcOpenType, setPvcOpenType] = useState('side_1');
             const [pvcCustomPrice, setPvcCustomPrice] = useState('');
+            const [railType, setRailType] = useState('hospital'); // State for Rail Type
             const [showQuote, setShowQuote] = useState(false);
             const [errorMsg, setErrorMsg] = useState('');
             const [formData, setFormData] = useState({ width: '', height: '', price: '', qty: '1', side: 'ขวา', woodType: 'BASSWOOD' });
@@ -837,6 +1053,7 @@
                 if (config.showWooden) modes.push({ id: 'wooden', label: 'มู่ลี่ไม้', icon: <Icons.Blinds size={24} /> });
                 if (config.showAluminum) modes.push({ id: 'aluminum', label: 'มู่ลี่อลูมิเนียม', icon: <Icons.Blinds size={24} /> });
                 if (config.showPVC) modes.push({ id: 'pvc', label: 'ฉากกั้นห้อง PVC', icon: <Icons.Fold size={24} /> }); 
+                if (config.showRail) modes.push({ id: 'rail', label: 'รางม่าน', icon: <Icon path={<line x1="2" y1="12" x2="22" y2="12"></line>} size={24} /> }); // New Menu
                 return modes;
             }, [config]);
 
@@ -850,10 +1067,22 @@
 
             const pvcPriceOptions = [ { id: '8.5_solid', label: 'ใบ 8.5cm แบบทึบ', price: config.pvc85SolidPrice }, { id: '8.5_japan', label: 'ใบ 8.5cm ญี่ปุ่น', price: config.pvc85JapanPrice }, { id: '10_solid', label: 'ใบ 10cm แบบทึบ', price: config.pvc10SolidPrice }, { id: '10_japan', label: 'ใบ 10cm ญี่ปุ่น', price: config.pvc10JapanPrice }, { id: 'euro_la', label: 'ใบ 12.3cm ยูโร LA', price: config.pvcEuroPrice }, { id: 'euro_lb', label: 'ใบ 12.3cm ยูโร LB', price: config.pvcEuroPrice }, { id: 'euro_zigzag', label: 'ใบ 12.3cm ยูโร สลับฟันปลา', price: config.pvcEuroPrice }, { id: 'custom', label: 'กำหนดราคาเอง', price: 'manual' } ];
             const pvcOpeningOptions = [ { id: 'side_1', label: 'เปิดข้าง 1 จุด' }, { id: 'side_2', label: 'เปิดข้าง 2 จุด' }, { id: 'center', label: 'เปิดกลาง' }, { id: 'center_3', label: 'เปิดกลาง 3 จุด' }, { id: 'center_4', label: 'เปิดกลาง 4 จุด' } ];
+            
+            // Rail Options
+            const railOptions = [
+                { id: 'hospital', label: 'รางโรงพยาบาล', price: config.railHospitalPrice, unit: 'เมตร' },
+                { id: 'hospital_tape', label: 'รางโรงพยาบาลลอนเทป', price: config.railHospitalTapePrice, unit: 'เมตร' },
+                { id: 'ceiling_bracket', label: 'แป๊ดยึดเพดาน', price: config.railCeilingBracketPrice, unit: 'ชุด' },
+                { id: 'tes_white_black', label: 'รางลอนเทป TES (ขาว/ดำ)', price: config.railTesWhiteBlackPrice, unit: 'เมตร' },
+                { id: 'tes_wood', label: 'รางลอนเทป TES (ลายไม้)', price: config.railTesWoodPrice, unit: 'เมตร' },
+                { id: 'nano', label: 'รางลอนเทป NANO (เก็บเสียง)', price: config.railNanoPrice, unit: 'เมตร' },
+                { id: 'm_manual', label: 'ราง M ระบบมือดึง', price: config.railMManualPrice, unit: 'เมตร' },
+                { id: 'm_cord', label: 'ราง M ระบบเชือกดึง', price: config.railMCordPrice, unit: 'เมตร' },
+            ];
 
             const calculateItem = () => {
-                const w_cm = parseFloat(formData.width); const h_cm = parseFloat(formData.height); const qty = parseInt(formData.qty);
-                if (!w_cm || !h_cm || !qty) return setErrorMsg('กรุณากรอกข้อมูลให้ครบถ้วน');
+                const qty = parseInt(formData.qty);
+                if (!qty) return setErrorMsg('กรุณาระบุจำนวน');
                 
                 // Get Installation Fee
                 let installCost = 0;
@@ -862,8 +1091,43 @@
                 }
                 
                 let price = 0; let totalPerUnit = 0; let details = {}; let typeName = "";
-                
-                if (calcMode === 'pvc') {
+                let w_cm = parseFloat(formData.width) || 0;
+                let h_cm = parseFloat(formData.height) || 0;
+
+                if (calcMode === 'rail') {
+                    const selectedRail = railOptions.find(r => r.id === railType);
+                    if (!selectedRail) return;
+                    
+                    price = selectedRail.price;
+                    typeName = selectedRail.label;
+                    
+                    if (railType === 'ceiling_bracket') {
+                        // Formula: Qty * Price (Height input is just for record, Width ignored for price)
+                        // User prompt says: "แป๊ดยึดเพดาน มีช่องกรอกขนาดความสูง ราคา 110/ชุด"
+                        // Formula prompt: "กว้าง*จำนวนชุด*ราคา" (Likely for rails, but for bracket per set, Qty*Price is logical)
+                        totalPerUnit = price + installCost;
+                        const mainFormula = `${price} บาท x 1 ชุด = ${formatCurrency(price)}`;
+                        details = {
+                            mainFormula: mainFormula,
+                            sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}`
+                        };
+                    } else {
+                        // Formula: Width * Qty * Price
+                        if (!w_cm) return setErrorMsg('กรุณากรอกความกว้าง');
+                        const w_m = w_cm / 100;
+                        const pricePerSet = w_m * price;
+                        totalPerUnit = pricePerSet + installCost;
+                        
+                        let formulaText = `${w_m.toFixed(2)}m x ${formatCurrency(price)} = ${formatCurrency(pricePerSet)}`;
+                        if (installCost > 0) formulaText += ` + ติดตั้ง ${formatCurrency(installCost)}`;
+                        
+                        details = {
+                            mainFormula: formulaText,
+                            sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}`
+                        };
+                    }
+                } else if (calcMode === 'pvc') {
+                    if (!w_cm || !h_cm) return setErrorMsg('กรุณากรอกข้อมูลให้ครบถ้วน');
                     const selectedPvc = pvcPriceOptions.find(p => p.id === pvcType);
                     let unitPrice = selectedPvc.price === 'manual' ? parseFloat(pvcCustomPrice) : selectedPvc.price;
                     if (!unitPrice) return setErrorMsg('กรุณากรอกราคาต่อตารางหลา');
@@ -885,6 +1149,7 @@
                         sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}` 
                     };
                 } else if (calcMode === 'aluminum') {
+                    if (!w_cm || !h_cm) return setErrorMsg('กรุณากรอกข้อมูลให้ครบถ้วน');
                     if (alumSystem === 'wood_pattern') {
                         const w_m = w_cm / 100; const h_m = h_cm / 100; const unitPrice = w_m * h_m * config.aluminumWoodPrice; 
                         price = unitPrice; 
@@ -922,17 +1187,59 @@
                         };
                     }
                 } else {
-                    if (calcMode === 'wooden') price = (formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice);
-                    else price = parseFloat(formData.price);
-                    if (!price) return setErrorMsg('กรุณากรอกราคา');
-                    const w_m = w_cm / 100; const h_m = h_cm / 100;
+                    if (!w_cm || !h_cm) return setErrorMsg('กรุณากรอกข้อมูลให้ครบถ้วน');
+
+                    const w_m = w_cm / 100;
+                    const h_m = h_cm / 100;
+
+                    let pricing_w_m = w_m;
+                    let pricing_h_m = h_m;
+                    let formulaExtra = "";
+                    let finalArea = 0;
+
                     const baseFactor = calcMode === 'wooden' ? 1.2 : config.fabricFactor;
-                    const fabricCostPerUnit = w_m * h_m * baseFactor * price; 
+
+                    if (calcMode === 'wooden') {
+                         price = (formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice);
+                         // Minimum Size Logic: 80x100 cm
+                         if (w_cm < 80) { pricing_w_m = 0.80; formulaExtra += " (ขั้นต่ำ ก. 0.80)"; }
+                         if (h_cm < 100) { pricing_h_m = 1.00; formulaExtra += " (ขั้นต่ำ ส. 1.00)"; }
+                         finalArea = pricing_w_m * pricing_h_m * baseFactor;
+                    } else {
+                         // Roller Blinds (External/Internal) Logic
+                         price = parseFloat(formData.price);
+                         
+                         // Calculate raw area with factor (default 1.2)
+                         let calculatedArea = w_m * h_m * baseFactor;
+                         
+                         // Minimum Area Logic: 1.20 sq.yards
+                         if (calculatedArea < 1.2) {
+                             finalArea = 1.2;
+                             formulaExtra += " (ขั้นต่ำ 1.20 ตร.ล.)";
+                         } else {
+                             finalArea = calculatedArea;
+                         }
+                    }
+
+                    if (!price) return setErrorMsg('กรุณากรอกราคา');
+
+                    // Calculate Fabric Cost using the Final Area
+                    const fabricCostPerUnit = finalArea * price; 
                     
-                    details = { mainFormula: `${w_m.toFixed(2)} * ${h_m.toFixed(2)} * ${baseFactor} * ${price} = ${fabricCostPerUnit.toFixed(2)}` };
+                    // Generate Details String
+                    if (calcMode === 'wooden') {
+                        details = { mainFormula: `${pricing_w_m.toFixed(2)} * ${pricing_h_m.toFixed(2)} * ${baseFactor} * ${price} = ${fabricCostPerUnit.toFixed(2)}${formulaExtra}` };
+                    } else {
+                        // Roller Blind Details
+                        details = { mainFormula: `${w_m.toFixed(2)}m * ${h_m.toFixed(2)}m * ${baseFactor} = ${finalArea.toFixed(3)} ตร.ล. * ${price} = ${fabricCostPerUnit.toFixed(2)}${formulaExtra}` };
+                    }
                     
                     if (calcMode === 'external') {
-                        const hw = config.hardwarePrice; const top = config.topRailPrice * w_m; const bot = config.bottomRailPrice * w_m; const sling = config.slingPrice * h_m;
+                        const hw = config.hardwarePrice; 
+                        // For External, usually w_m/h_m (actual) is used for hardware. 
+                        const top = config.topRailPrice * w_m; 
+                        const bot = config.bottomRailPrice * w_m; 
+                        const sling = config.slingPrice * h_m;
                         totalPerUnit = fabricCostPerUnit + hw + top + bot + sling;
                         
                         // Add Install Cost
@@ -992,12 +1299,15 @@
                     ) : <div className="bg-white p-6 rounded-2xl text-center text-slate-400 border border-dashed border-slate-300 mb-6 font-bold">ปิดปรับปรุงระบบคำนวณชั่วคราว</div>}
                     {availableModes.length > 0 && (
                         <div className={`bg-white rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white p-6 mb-6 relative overflow-hidden scale-in`}>
+                            {calcMode === 'rail' && (<div className="mb-6 space-y-4"><div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ประเภทราง</label><select value={railType} onChange={(e) => setRailType(e.target.value)} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-3 font-bold text-slate-700`}>{railOptions.map(r => (<option key={r.id} value={r.id}>{r.label} ({r.price}/{r.unit})</option>))}</select></div></div>)}
                             {calcMode === 'pvc' && (<div className="mb-6 space-y-4"><div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ประเภทใบ/ราคา</label><select value={pvcType} onChange={(e) => setPvcType(e.target.value)} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-3 font-bold text-slate-700`}>{pvcPriceOptions.map(p => (<option key={p.id} value={p.id}>{p.label} {p.price !== 'manual' ? `(${p.price})` : ''}</option>))}</select></div>{(pvcPriceOptions.find(p => p.id === pvcType)?.price === 'manual') && (<div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ระบุราคา (บาท/ตร.ล.)</label><input type="number" value={pvcCustomPrice} onChange={(e) => setPvcCustomPrice(e.target.value)} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-3 font-bold text-xl text-slate-700`} placeholder="ระบุราคา..." /></div>)}<div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>รูปแบบการเปิด</label><select value={pvcOpenType} onChange={(e) => setPvcOpenType(e.target.value)} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-3 font-bold text-slate-700`}>{pvcOpeningOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</select></div></div>)}
                             {calcMode === 'aluminum' && (<div className="mb-6"><label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>เลือกระบบ</label><div className={`flex flex-col gap-2`}><div className="flex gap-2"><button onClick={() => setAlumSystem('standard')} className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'standard' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>ธรรมดา (ลด 60%+5%)</button><button onClick={() => setAlumSystem('chain')} className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'chain' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>โซ่วน (ลด 60%)</button></div><button onClick={() => setAlumSystem('wood_pattern')} className={`w-full py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'wood_pattern' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>ลายไม้ (ตร.ม. ละ {config.aluminumWoodPrice})</button></div></div>)}
                             {calcMode === 'wooden' && (<div className="mb-6"><label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>ชนิดไม้</label><div className={`flex gap-3 p-1.5 rounded-xl ${theme.bgSoft}`}>{['BASSWOOD', 'FAUX WOOD'].map(t => (<label key={t} className={`flex-1 cursor-pointer rounded-lg py-2.5 flex items-center justify-center transition-all ${formData.woodType === t ? 'bg-white shadow-sm font-bold' : 'font-medium opacity-60'} ${theme.textMain}`}><input type="radio" name="woodType" value={t} checked={formData.woodType === t} onChange={handleInputChange} className="hidden" /><span className="text-xs">{t}</span></label>))}</div></div>)}
-                            <div className="grid grid-cols-2 gap-4 mb-5"><div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>กว้าง (cm)</label><input type="number" name="width" value={formData.width} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300`} placeholder="0" /></div><div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>สูง (cm)</label><input type="number" name="height" value={formData.height} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300`} placeholder="0" /></div></div>
-                            <div className="grid grid-cols-2 gap-4 mb-6">{calcMode !== 'aluminum' && calcMode !== 'pvc' && (calcMode !== 'wooden' ? (<div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ราคาผ้า</label><input type="number" name="price" value={formData.price} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300`} placeholder="฿" /></div>) : (<div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ราคา/หน่วย</label><div className={`w-full ${theme.bgSoft} border border-transparent rounded-xl p-4 font-bold text-xl flex items-center ${theme.textSub}`}>{formatCurrency(formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice)}</div></div>))}<div className={(calcMode === 'aluminum' || calcMode === 'pvc') ? 'col-span-2' : ''}><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>จำนวน</label><div className={`flex bg-white border ${theme.border} rounded-xl overflow-hidden h-[62px]`}><button onClick={() => setFormData(p => ({...p, qty: Math.max(1, parseInt(p.qty)-1 || 1).toString()}))} className={`px-5 font-bold text-xl transition-colors hover:bg-slate-50 ${theme.textSub}`}>-</button><input type="number" name="qty" value={formData.qty} onChange={handleInputChange} className={`w-full bg-transparent text-center font-bold text-xl focus:outline-none ${theme.textMain}`} /><button onClick={() => setFormData(p => ({...p, qty: (parseInt(p.qty)+1 || 1).toString()}))} className={`px-5 font-bold text-xl transition-colors hover:bg-slate-50 ${theme.textSub}`}>+</button></div></div></div>
-                            {calcMode !== 'pvc' && (<div className="mb-6"><label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>ตำแหน่งโซ่/สลิง</label><div className="flex gap-4">{['ซ้าย', 'ขวา'].map(s => (<label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}><input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" /><span className="font-bold">{s}</span></label>))}</div></div>)}
+                            
+                            <div className="grid grid-cols-2 gap-4 mb-5"><div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>กว้าง (cm)</label><input type="number" name="width" value={formData.width} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300 ${calcMode === 'rail' && railType === 'ceiling_bracket' ? 'opacity-50' : ''}`} placeholder="0" /></div><div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>สูง (cm) <span className="font-normal text-gray-300">(ถ้ามี)</span></label><input type="number" name="height" value={formData.height} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300`} placeholder="0" /></div></div>
+                            <div className="grid grid-cols-2 gap-4 mb-6">{calcMode !== 'aluminum' && calcMode !== 'pvc' && calcMode !== 'rail' && (calcMode !== 'wooden' ? (<div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ราคาผ้า</label><input type="number" name="price" value={formData.price} onChange={handleInputChange} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-4 font-bold text-xl ${theme.textMain} transition-all placeholder-slate-300`} placeholder="฿" /></div>) : (<div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ราคา/หน่วย</label><div className={`w-full ${theme.bgSoft} border border-transparent rounded-xl p-4 font-bold text-xl flex items-center ${theme.textSub}`}>{formatCurrency(formData.woodType === 'BASSWOOD' ? config.basswoodPrice : config.fauxwoodPrice)}</div></div>))}<div className={(calcMode === 'aluminum' || calcMode === 'pvc' || calcMode === 'rail') ? 'col-span-2' : ''}><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>จำนวน</label><div className={`flex bg-white border ${theme.border} rounded-xl overflow-hidden h-[62px]`}><button onClick={() => setFormData(p => ({...p, qty: Math.max(1, parseInt(p.qty)-1 || 1).toString()}))} className={`px-5 font-bold text-xl transition-colors hover:bg-slate-50 ${theme.textSub}`}>-</button><input type="number" name="qty" value={formData.qty} onChange={handleInputChange} className={`w-full bg-transparent text-center font-bold text-xl focus:outline-none ${theme.textMain}`} /><button onClick={() => setFormData(p => ({...p, qty: (parseInt(p.qty)+1 || 1).toString()}))} className={`px-5 font-bold text-xl transition-colors hover:bg-slate-50 ${theme.textSub}`}>+</button></div></div></div>
+                            {calcMode !== 'pvc' && calcMode !== 'rail' && (<div className="mb-6"><label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>ตำแหน่งโซ่/สลิง</label><div className="flex gap-4">{['ซ้าย', 'ขวา'].map(s => (<label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}><input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" /><span className="font-bold">{s}</span></label>))}</div></div>)}
+                            {calcMode === 'rail' && railType !== 'ceiling_bracket' && (<div className="mb-6"><label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>รูปแบบการเปิด</label><div className="flex gap-4">{['เปิดกลาง', 'เปิดข้าง'].map(s => (<label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}><input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" /><span className="font-bold">{s}</span></label>))}</div></div>)}
                             
                             {/* --- NEW: Installation Fee Toggle --- */}
                             <div className={`mb-8 p-4 rounded-xl border border-slate-100 bg-slate-50 transition-all ${useInstallFee ? 'ring-1 ring-orange-100' : ''}`}>
@@ -1032,7 +1342,7 @@
                             <button onClick={calculateItem} className={`w-full font-bold text-lg py-4 rounded-2xl shadow-lg active:scale-95 transition-all flex justify-center items-center gap-2 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.Plus size={24} /> เพิ่มรายการ</button>
                         </div>
                     )}
-                    {items.length > 0 && (<div className="space-y-4 pb-20"><div className="flex justify-between items-center px-4"><span className={`text-sm font-bold uppercase tracking-wider ${theme.textSub}`}>รายการ ({items.length})</span><button onClick={() => setItems([])} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${theme.btnSecondary}`}><Icons.Trash2 size={14}/> ล้าง</button></div>{items.map((item) => (<div key={item.id} className={`bg-white p-5 rounded-2xl border border-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] relative group scale-in hover:scale-[1.02] transition-transform`}><button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${theme.textSub} hover:${theme.primary} hover:${theme.bgSoft}`}><Icons.X size={18} /></button><div className="flex items-center gap-3 mb-4"><div className={`p-2 rounded-xl ${theme.bgSoft} ${theme.primary}`}>{item.type === 'external' ? <Icons.Sun size={18} /> : item.type === 'wooden' ? <Icons.Blinds size={18} /> : item.type === 'aluminum' ? <Icons.Blinds size={18} /> : item.type === 'pvc' ? <Icons.Fold size={18} /> : <Icons.Roller size={18} />}</div><span className={`text-sm font-bold ${theme.textMain}`}>{item.typeName}</span></div><div className="flex justify-between items-end"><div><div className={`text-lg font-bold font-mono tracking-tight ${theme.textMain}`}>{item.w_cm} <span className="text-slate-400 text-sm">x</span> {item.h_cm} <span className="text-xs text-slate-400 font-sans">cm</span></div><div className={`text-xs font-medium mt-1 inline-block px-2 py-1 rounded-md border border-slate-100 ${theme.textSub} ${theme.bgSoft}`}>จำนวน {item.qty} ชุด • ปรับ{item.side}</div></div><div className={`text-xl font-bold ${theme.highlight}`}>{formatCurrency(item.grandTotal)}</div></div></div>))}<button onClick={() => setShowQuote(true)} className={`w-full px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg active:scale-95 transition-all mt-4 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button></div>)}
+                    {items.length > 0 && (<div className="space-y-4 pb-20"><div className="flex justify-between items-center px-4"><span className={`text-sm font-bold uppercase tracking-wider ${theme.textSub}`}>รายการ ({items.length})</span><button onClick={() => setItems([])} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${theme.btnSecondary}`}><Icons.Trash2 size={14}/> ล้าง</button></div>{items.map((item) => (<div key={item.id} className={`bg-white p-5 rounded-2xl border border-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] relative group scale-in hover:scale-[1.02] transition-transform`}><button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${theme.textSub} hover:${theme.primary} hover:${theme.bgSoft}`}><Icons.X size={18} /></button><div className="flex items-center gap-3 mb-4"><div className={`p-2 rounded-xl ${theme.bgSoft} ${theme.primary}`}>{item.type === 'external' ? <Icons.Sun size={18} /> : item.type === 'wooden' ? <Icons.Blinds size={18} /> : item.type === 'aluminum' ? <Icons.Blinds size={18} /> : item.type === 'pvc' ? <Icons.Fold size={18} /> : item.type === 'rail' ? <Icon path={<line x1="2" y1="12" x2="22" y2="12"></line>} size={18} /> : <Icons.Roller size={18} />}</div><span className={`text-sm font-bold ${theme.textMain}`}>{item.typeName}</span></div><div className="flex justify-between items-end"><div><div className={`text-lg font-bold font-mono tracking-tight ${theme.textMain}`}>{item.w_cm || '-'} <span className="text-slate-400 text-sm">x</span> {item.h_cm || '-'} <span className="text-xs text-slate-400 font-sans">cm</span></div><div className={`text-xs font-medium mt-1 inline-block px-2 py-1 rounded-md border border-slate-100 ${theme.textSub} ${theme.bgSoft}`}>จำนวน {item.qty} ชุด • ปรับ{item.side}</div></div><div className={`text-xl font-bold ${theme.highlight}`}>{formatCurrency(item.grandTotal)}</div></div></div>))}<button onClick={() => setShowQuote(true)} className={`w-full px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg active:scale-95 transition-all mt-4 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button></div>)}
                     {showQuote && <QuotationModal items={items} onClose={() => setShowQuote(false)} config={config} userProfile={userProfile} theme={theme} />}
                 </div>
             );
@@ -1143,5 +1453,6 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+    <script src="/_vercel/insights/script.js"></script>
 </body>
 </html>
