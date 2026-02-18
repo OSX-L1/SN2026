@@ -482,13 +482,24 @@
 
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1132498145&single=true&output=csv';
 
+            // Define the size columns we expect
+            const sizeMap = [
+                { label: '4.0 ft', keys: ['4ft', '4.0', '4.00'] },
+                { label: '4.5 ft', keys: ['4.5ft', '4.5', '4.50'] },
+                { label: '5.0 ft', keys: ['5ft', '5.0', '5.00'] },
+                { label: '5.5 ft', keys: ['5.5ft', '5.5', '5.50'] },
+                { label: '6.0 ft', keys: ['6ft', '6.0', '6.00'] },
+                { label: '6.5 ft', keys: ['6.5ft', '6.5', '6.50'] },
+                { label: '7.0 ft', keys: ['7ft', '7.0', '7.00'] },
+                { label: '8.0 ft', keys: ['8ft', '8.0', '8.00'] }
+            ];
+
             useEffect(() => {
                 setLoading(true);
                 Papa.parse(SHEET_URL, {
                     download: true,
-                    header: true,
+                    header: false, // Changed to false to handle custom headers
                     skipEmptyLines: true,
-                    transformHeader: (h) => h.trim(), // Trim headers
                     complete: (results) => {
                         const mergedData = preprocessData(results.data);
                         setData(mergedData);
@@ -502,36 +513,97 @@
                 });
             }, []);
 
-            const preprocessData = (rawData) => {
-                if (!rawData || rawData.length === 0) return [];
+            const preprocessData = (rows) => {
+                if (!rows || rows.length < 2) return [];
+                
+                let headerRowIndex = -1;
+                let codeIdx = -1;
+                let nameIdx = -1;
+                const columnIndices = {};
+
+                // 1. Detect Header Row
+                for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                    const row = rows[i].map(c => String(c).trim().toLowerCase());
+                    
+                    // Look for key columns to identify header row
+                    const hasSize = row.some(c => c.includes('4ft') || c.includes('4.0'));
+                    const hasCode = row.some(c => c === 'code' || c === 'รหัส' || c.includes('รหัสสินค้า') || c.includes('code'));
+                    
+                    if (hasSize || hasCode) {
+                        headerRowIndex = i;
+                        
+                        // Identify Code Column
+                        codeIdx = row.findIndex(c => c === 'code' || c === 'รหัส' || c.includes('code') || c.includes('รหัสสินค้า'));
+                        if (codeIdx === -1) codeIdx = 0; // Default to first col if not found explicitly
+
+                        // Identify Name Column
+                        nameIdx = row.findIndex(c => c === 'name' || c === 'ชื่อ' || c.includes('name') || c.includes('ชื่อสินค้า'));
+                        if (nameIdx === -1 || nameIdx === codeIdx) nameIdx = codeIdx + 1; // Default to next col
+
+                        // Identify Size Columns dynamically
+                        sizeMap.forEach(size => {
+                            // Find column that matches any of the keys for this size
+                            const idx = row.findIndex(cell => size.keys.some(k => cell.replace(/\s/g,'').includes(k)));
+                            if (idx !== -1) columnIndices[size.label] = idx;
+                        });
+                        break;
+                    }
+                }
+
+                // Fallback if no header found
+                if (headerRowIndex === -1) {
+                    headerRowIndex = 0; codeIdx = 0; nameIdx = 1;
+                    // Try to guess columns sequentially starting from 2
+                    let currentDataCol = 2;
+                    sizeMap.forEach(size => {
+                        if (columnIndices[size.label] === undefined) {
+                            columnIndices[size.label] = currentDataCol++;
+                        }
+                    });
+                }
+
                 const processed = [];
                 let currentRow = null;
-                const idKeys = ['ชื่อสินค้า35MM', 'Product Name', 'ชื่อสินค้า', 'Name', 'Code', 'รหัส'];
-                let idKey = Object.keys(rawData[0]).find(k => idKeys.some(idk => k.toLowerCase().includes(idk.toLowerCase()))) || Object.keys(rawData[0])[0];
 
-                rawData.forEach(row => {
-                    const idValue = row[idKey];
-                    if (idValue && String(idValue).trim().length > 0) {
-                        currentRow = { ...row }; 
+                for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length < 2) continue;
+
+                    const rawCode = row[codeIdx];
+                    const rawName = row[nameIdx];
+
+                    // Identify new item (has code)
+                    if (rawCode && String(rawCode).trim().length > 0) {
+                        currentRow = {
+                            code: String(rawCode).trim(),
+                            name: rawName ? String(rawName).trim() : '',
+                            stock: {}
+                        };
+                        
+                        // Read stock data
+                        sizeMap.forEach(size => {
+                            const colIdx = columnIndices[size.label];
+                            if (colIdx !== undefined && colIdx < row.length) {
+                                const val = parseFloat(String(row[colIdx]).replace(/,/g, ''));
+                                currentRow.stock[size.label] = !isNaN(val) ? val : 0;
+                            } else {
+                                currentRow.stock[size.label] = 0;
+                            }
+                        });
+                        
                         processed.push(currentRow);
                     } else if (currentRow) {
-                        Object.keys(row).forEach(key => {
-                            if (key === idKey) return;
-                            const val = parseFloat(String(row[key] || '').replace(/,/g, ''));
-                            if (!isNaN(val)) {
-                                const currentVal = parseFloat(String(currentRow[key] || '').replace(/,/g, '')) || 0;
-                                currentRow[key] = String(currentVal + val);
+                        // Merge rows logic
+                         sizeMap.forEach(size => {
+                            const colIdx = columnIndices[size.label];
+                            if (colIdx !== undefined && colIdx < row.length) {
+                                const val = parseFloat(String(row[colIdx]).replace(/,/g, ''));
+                                if (!isNaN(val)) currentRow.stock[size.label] += val;
                             }
                         });
                     }
-                });
+                }
                 return processed;
-            };
-
-            const getName = (row) => {
-                 const idKeys = ['ชื่อสินค้า35MM', 'Product Name', 'ชื่อสินค้า', 'Name', 'Code', 'รหัส'];
-                 const key = Object.keys(row).find(k => idKeys.some(idk => k.toLowerCase().includes(idk.toLowerCase())));
-                 return row[key] || 'Unknown';
             };
 
             const handleInputChange = (e) => {
@@ -539,12 +611,10 @@
                 setSearchQuery(val);
                 if (val.length > 1) {
                     const lower = val.toLowerCase();
-                    const matches = data.filter(row => {
-                        const name = getName(row);
-                        const code = String(Object.values(row)[0] || ''); // First column usually code
-                        return name.toLowerCase().includes(lower) || code.toLowerCase().includes(lower);
-                    }).slice(0, 10);
-                    setSuggestions(matches);
+                    setSuggestions(data.filter(item => 
+                        item.code.toLowerCase().includes(lower) || 
+                        item.name.toLowerCase().includes(lower)
+                    ).slice(0, 10));
                     setShowSuggestions(true);
                 } else {
                     setSuggestions([]);
@@ -552,11 +622,9 @@
                 }
             };
 
-            const handleSuggestionClick = (row) => {
-                const keys = Object.keys(row);
-                const code = row[keys[0]]; // Use Code
-                setSearchQuery(code);
-                setSearchResult(row);
+            const handleSuggestionClick = (item) => {
+                setSearchQuery(item.code);
+                setSearchResult(item);
                 setError('');
                 setSuggestions([]);
                 setShowSuggestions(false);
@@ -566,26 +634,13 @@
                 e.preventDefault();
                 if (!searchQuery.trim()) return;
                 const query = searchQuery.trim().toLowerCase();
-                const found = data.find(row => Object.values(row).some(val => val && val.toString().toLowerCase().includes(query)));
+                
+                let found = data.find(item => item.code.toLowerCase() === query);
+                if (!found) found = data.find(item => item.code.toLowerCase().includes(query));
+                
                 if (found) { setSearchResult(found); setError(''); }
                 else { setSearchResult(null); setError(`ไม่พบรหัส: ${searchQuery}`); }
                 setShowSuggestions(false);
-            };
-
-            const displayColumns = [
-                { label: '4.0 ft', keys: ['ใบ 4ft', '4ft', '4.0'] },
-                { label: '4.5 ft', keys: ['ใบ 4.5ft', '4.5ft', '4.5'] },
-                { label: '5.0 ft', keys: ['ใบ 5ft', '5ft', '5.0'] },
-                { label: '5.5 ft', keys: ['ใบ 5.5ft', '5.5ft', '5.5'] },
-                { label: '6.0 ft', keys: ['ใบ 6ft', '6ft', '6.0'] },
-                { label: '6.5 ft', keys: ['ใบ 6.5ft', '6.5ft', '6.5'] },
-                { label: '7.0 ft', keys: ['ใบ 7ft', '7ft', '7.0'] },
-                { label: '8.0 ft', keys: ['ใบ 8ft', '8ft', '8.0'] },
-            ];
-
-            const getValue = (row, keys) => {
-                const foundKey = Object.keys(row).find(k => keys.some(search => k.toLowerCase().replace(/\s/g,'').includes(search.toLowerCase().replace(/\s/g,''))));
-                return foundKey ? row[foundKey] : '-';
             };
 
             return (
@@ -627,23 +682,19 @@
                         {/* Suggestions List */}
                         {showSuggestions && suggestions.length > 0 && (
                             <div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
-                                {suggestions.map((row, idx) => {
-                                    const keys = Object.keys(row);
-                                    const code = row[keys[0]];
-                                    const name = getName(row);
-                                    return (
+                                {suggestions.map((item, idx) => (
                                     <div 
                                         key={idx}
-                                        onClick={() => handleSuggestionClick(row)}
+                                        onClick={() => handleSuggestionClick(item)}
                                         className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors"
                                     >
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-slate-700">{code}</span>
-                                            <span className="text-[10px] text-slate-400">{name}</span>
+                                            <span className="font-bold text-slate-700">{item.code}</span>
+                                            <span className="text-[10px] text-slate-400">{item.name}</span>
                                         </div>
                                         <span className="text-xs text-slate-400">เลือก</span>
                                     </div>
-                                )})}
+                                ))}
                             </div>
                         )}
 
@@ -663,7 +714,7 @@
                                         <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
                                             <tr>
                                                 <th className="p-3 text-left bg-slate-100 min-w-[150px] border border-slate-300">สินค้า (รหัส/ชื่อ)</th>
-                                                {displayColumns.map((col, i) => <th key={i} className="p-3 text-center whitespace-nowrap bg-slate-100 border border-slate-300">{col.label}</th>)}
+                                                {sizeMap.map((col, i) => <th key={i} className="p-3 text-center whitespace-nowrap bg-slate-100 border border-slate-300">{col.label}</th>)}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
@@ -673,10 +724,12 @@
                                                         <div className="text-lg font-black text-slate-800 font-mono tracking-tight">{item.code}</div>
                                                         <div className="text-xs text-slate-500 mt-0.5">{item.name}</div>
                                                     </td>
-                                                    {displayColumns.map((col, j) => {
-                                                        const val = getValue(item, col.keys);
-                                                        const hasStock = val !== '-' && parseFloat(val) > 0;
-                                                        return <td key={j} className={`p-3 text-center border border-slate-200 align-middle ${hasStock ? 'text-green-600 font-bold bg-green-50/20' : 'text-slate-300'}`}>{val}</td>
+                                                    {sizeMap.map((col, j) => {
+                                                        const val = item.stock[col.label];
+                                                        const hasStock = val > 0;
+                                                        return <td key={j} className={`p-3 text-center border border-slate-200 align-middle ${hasStock ? 'text-green-600 font-bold bg-green-50/20' : 'bg-red-50/10'}`}>
+                                                            {hasStock ? val : <span className="text-red-500 text-[10px] font-bold">สินค้าหมด</span>}
+                                                        </td>
                                                     })}
                                                 </tr>
                                             ))}
@@ -687,7 +740,6 @@
                         </div>
                     )}
 
-                    {/* Single Result View */}
                     {searchResult && (
                         <div className="animate-scale-in">
                             <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border}`}>
@@ -696,9 +748,9 @@
                                     <p className={`text-sm ${theme.textSub} mt-2 font-medium`}>{searchResult.name}</p>
                                 </div>
                                 <div className="p-5 grid grid-cols-3 gap-3">
-                                    {displayColumns.map((col, i) => { 
-                                        const val = getValue(searchResult, col.keys); 
-                                        const hasStock = val !== '-' && parseFloat(val) > 0; 
+                                    {sizeMap.map((col, i) => { 
+                                        const val = searchResult.stock[col.label];
+                                        const hasStock = val > 0; 
                                         return (
                                             <div key={i} className={`relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-md ${hasStock ? 'bg-white border-green-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
                                                 <div className="flex justify-between items-start mb-2">
@@ -707,7 +759,10 @@
                                                 </div>
                                                 <div className="text-lg font-bold text-slate-700">{col.label}</div>
                                                 <div className="mt-3 flex items-end justify-between">
-                                                    <span className="text-3xl font-black tracking-tighter text-slate-800">{val}</span>
+                                                    {hasStock ? 
+                                                        <span className="text-3xl font-black tracking-tighter text-slate-800">{val}</span> : 
+                                                        <span className="text-lg font-bold text-red-500">สินค้าหมด</span>
+                                                    }
                                                 </div>
                                             </div>
                                         ) 
@@ -776,13 +831,18 @@
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {data.map((row, i) => (
+                                            {data.map((row, i) => {
+                                                const qty = parseFloat(row[2]);
+                                                const hasStock = qty > 0;
+                                                return (
                                                 <tr key={i} className="hover:bg-slate-50 transition-colors">
                                                     <td className="p-3 font-bold text-slate-700 font-mono border border-slate-200">{row[0]}</td>
                                                     <td className="p-3 text-slate-600 border border-slate-200">{row[1]}</td>
-                                                    <td className={`p-3 text-right font-bold border border-slate-200 ${parseFloat(row[2]) > 0 ? 'text-green-600' : 'text-red-400'}`}>{row[2]}</td>
+                                                    <td className={`p-3 text-right font-bold border border-slate-200 ${hasStock ? 'text-green-600' : 'bg-red-50/20'}`}>
+                                                        {hasStock ? row[2] : <span className="text-red-500 text-xs font-bold">สินค้าหมด</span>}
+                                                    </td>
                                                 </tr>
-                                            ))}
+                                            )})}
                                         </tbody>
                                     </table>
                                  </div>
@@ -790,7 +850,23 @@
                         </div>
                     )}
 
-                    {searchResult && (<div className="animate-scale-in"><div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3><div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div><div className="w-full h-px bg-slate-100 mb-6"></div><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3><div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div><div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>{showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}<button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button></div></div>)}
+                    {searchResult && (
+                        <div className="animate-scale-in">
+                            <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3>
+                                <div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div>
+                                <div className="w-full h-px bg-slate-100 mb-6"></div>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3>
+                                {parseFloat(searchResult[2]) > 0 ? 
+                                    <div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div> : 
+                                    <div className="text-4xl font-bold text-red-500">สินค้าหมด</div>
+                                }
+                                <div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>
+                                {showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}
+                                <button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -849,13 +925,18 @@
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {data.map((row, i) => (
+                                            {data.map((row, i) => {
+                                                const qty = parseFloat(row[2]);
+                                                const hasStock = qty > 0;
+                                                return (
                                                 <tr key={i} className="hover:bg-slate-50 transition-colors">
                                                     <td className="p-3 font-bold text-slate-700 font-mono border border-slate-200">{row[0]}</td>
                                                     <td className="p-3 text-slate-600 border border-slate-200">{row[1]}</td>
-                                                    <td className={`p-3 text-right font-bold border border-slate-200 ${parseFloat(row[2]) > 0 ? 'text-green-600' : 'text-red-400'}`}>{row[2]}</td>
+                                                    <td className={`p-3 text-right font-bold border border-slate-200 ${hasStock ? 'text-green-600' : 'bg-red-50/20'}`}>
+                                                        {hasStock ? row[2] : <span className="text-red-500 text-xs font-bold">สินค้าหมด</span>}
+                                                    </td>
                                                 </tr>
-                                            ))}
+                                            )})}
                                         </tbody>
                                     </table>
                                  </div>
@@ -863,7 +944,23 @@
                         </div>
                     )}
 
-                    {searchResult && (<div className="animate-scale-in"><div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3><div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div><div className="w-full h-px bg-slate-100 mb-6"></div><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3><div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div><div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>{showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}<button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button></div></div>)}
+                    {searchResult && (
+                        <div className="animate-scale-in">
+                            <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3>
+                                <div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div>
+                                <div className="w-full h-px bg-slate-100 mb-6"></div>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3>
+                                {parseFloat(searchResult[2]) > 0 ? 
+                                    <div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div> : 
+                                    <div className="text-4xl font-bold text-red-500">สินค้าหมด</div>
+                                }
+                                <div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>
+                                {showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}
+                                <button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -1075,7 +1172,9 @@
                                                     {heightColumns.map((hKey, j) => {
                                                         const val = item.stock[hKey];
                                                         const hasStock = val > 0;
-                                                        return <td key={j} className={`p-3 text-center border border-slate-200 align-middle ${hasStock ? 'text-green-600 font-bold bg-green-50/20' : 'text-slate-300'}`}>{hasStock ? val : '-'}</td>
+                                                        return <td key={j} className={`p-3 text-center border border-slate-200 align-middle ${hasStock ? 'text-green-600 font-bold bg-green-50/20' : 'bg-red-50/10'}`}>
+                                                            {hasStock ? val : <span className="text-red-500 text-[10px] font-bold">สินค้าหมด</span>}
+                                                        </td>
                                                     })}
                                                 </tr>
                                             ))}
@@ -1102,7 +1201,12 @@
                                             <div key={index} className={`relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-md ${hasStock ? 'bg-white border-green-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
                                                 <div className="flex justify-between items-start mb-2"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ความสูง</span><span className={`w-2 h-2 rounded-full ${hasStock ? 'bg-green-500' : 'bg-slate-300'}`}></span></div>
                                                 <div className="text-lg font-bold text-slate-700">{hKey} ม.</div>
-                                                <div className="mt-3 flex items-end justify-between"><span className="text-3xl font-black tracking-tighter text-slate-800">{hasStock ? val : '-'}</span></div>
+                                                <div className="mt-3 flex items-end justify-between">
+                                                    {hasStock ? 
+                                                        <span className="text-3xl font-black tracking-tighter text-slate-800">{val}</span> : 
+                                                        <span className="text-lg font-bold text-red-500">สินค้าหมด</span>
+                                                    }
+                                                </div>
                                             </div>
                                         )
                                     })}
