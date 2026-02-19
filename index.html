@@ -478,16 +478,28 @@
             const [showDebug, setShowDebug] = useState(false); // Debug toggle
             const [suggestions, setSuggestions] = useState([]);
             const [showSuggestions, setShowSuggestions] = useState(false);
+            const [showAll, setShowAll] = useState(false); // New state for View All
 
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1132498145&single=true&output=csv';
+
+            // Define the size columns we expect
+            const sizeMap = [
+                { label: '4.0 ft', keys: ['4ft', '4.0', '4.00'] },
+                { label: '4.5 ft', keys: ['4.5ft', '4.5', '4.50'] },
+                { label: '5.0 ft', keys: ['5ft', '5.0', '5.00'] },
+                { label: '5.5 ft', keys: ['5.5ft', '5.5', '5.50'] },
+                { label: '6.0 ft', keys: ['6ft', '6.0', '6.00'] },
+                { label: '6.5 ft', keys: ['6.5ft', '6.5', '6.50'] },
+                { label: '7.0 ft', keys: ['7ft', '7.0', '7.00'] },
+                { label: '8.0 ft', keys: ['8ft', '8.0', '8.00'] }
+            ];
 
             useEffect(() => {
                 setLoading(true);
                 Papa.parse(SHEET_URL, {
                     download: true,
-                    header: true,
+                    header: false, // Changed to false to handle custom headers
                     skipEmptyLines: true,
-                    transformHeader: (h) => h.trim(), // Trim headers
                     complete: (results) => {
                         const mergedData = preprocessData(results.data);
                         setData(mergedData);
@@ -501,36 +513,97 @@
                 });
             }, []);
 
-            const preprocessData = (rawData) => {
-                if (!rawData || rawData.length === 0) return [];
+            const preprocessData = (rows) => {
+                if (!rows || rows.length < 2) return [];
+                
+                let headerRowIndex = -1;
+                let codeIdx = -1;
+                let nameIdx = -1;
+                const columnIndices = {};
+
+                // 1. Detect Header Row
+                for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                    const row = rows[i].map(c => String(c).trim().toLowerCase());
+                    
+                    // Look for key columns to identify header row
+                    const hasSize = row.some(c => c.includes('4ft') || c.includes('4.0'));
+                    const hasCode = row.some(c => c === 'code' || c === 'รหัส' || c.includes('รหัสสินค้า') || c.includes('code'));
+                    
+                    if (hasSize || hasCode) {
+                        headerRowIndex = i;
+                        
+                        // Identify Code Column
+                        codeIdx = row.findIndex(c => c === 'code' || c === 'รหัส' || c.includes('code') || c.includes('รหัสสินค้า'));
+                        if (codeIdx === -1) codeIdx = 0; // Default to first col if not found explicitly
+
+                        // Identify Name Column
+                        nameIdx = row.findIndex(c => c === 'name' || c === 'ชื่อ' || c.includes('name') || c.includes('ชื่อสินค้า'));
+                        if (nameIdx === -1 || nameIdx === codeIdx) nameIdx = codeIdx + 1; // Default to next col
+
+                        // Identify Size Columns dynamically
+                        sizeMap.forEach(size => {
+                            // Find column that matches any of the keys for this size
+                            const idx = row.findIndex(cell => size.keys.some(k => cell.replace(/\s/g,'').includes(k)));
+                            if (idx !== -1) columnIndices[size.label] = idx;
+                        });
+                        break;
+                    }
+                }
+
+                // Fallback if no header found
+                if (headerRowIndex === -1) {
+                    headerRowIndex = 0; codeIdx = 0; nameIdx = 1;
+                    // Try to guess columns sequentially starting from 2
+                    let currentDataCol = 2;
+                    sizeMap.forEach(size => {
+                        if (columnIndices[size.label] === undefined) {
+                            columnIndices[size.label] = currentDataCol++;
+                        }
+                    });
+                }
+
                 const processed = [];
                 let currentRow = null;
-                const idKeys = ['ชื่อสินค้า35MM', 'Product Name', 'ชื่อสินค้า', 'Name', 'Code', 'รหัส'];
-                let idKey = Object.keys(rawData[0]).find(k => idKeys.some(idk => k.toLowerCase().includes(idk.toLowerCase()))) || Object.keys(rawData[0])[0];
 
-                rawData.forEach(row => {
-                    const idValue = row[idKey];
-                    if (idValue && String(idValue).trim().length > 0) {
-                        currentRow = { ...row }; 
+                for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length < 2) continue;
+
+                    const rawCode = row[codeIdx];
+                    const rawName = row[nameIdx];
+
+                    // Identify new item (has code)
+                    if (rawCode && String(rawCode).trim().length > 0) {
+                        currentRow = {
+                            code: String(rawCode).trim(),
+                            name: rawName ? String(rawName).trim() : '',
+                            stock: {}
+                        };
+                        
+                        // Read stock data
+                        sizeMap.forEach(size => {
+                            const colIdx = columnIndices[size.label];
+                            if (colIdx !== undefined && colIdx < row.length) {
+                                const val = parseFloat(String(row[colIdx]).replace(/,/g, ''));
+                                currentRow.stock[size.label] = !isNaN(val) ? val : 0;
+                            } else {
+                                currentRow.stock[size.label] = 0;
+                            }
+                        });
+                        
                         processed.push(currentRow);
                     } else if (currentRow) {
-                        Object.keys(row).forEach(key => {
-                            if (key === idKey) return;
-                            const val = parseFloat(String(row[key] || '').replace(/,/g, ''));
-                            if (!isNaN(val)) {
-                                const currentVal = parseFloat(String(currentRow[key] || '').replace(/,/g, '')) || 0;
-                                currentRow[key] = String(currentVal + val);
+                        // Merge rows logic
+                         sizeMap.forEach(size => {
+                            const colIdx = columnIndices[size.label];
+                            if (colIdx !== undefined && colIdx < row.length) {
+                                const val = parseFloat(String(row[colIdx]).replace(/,/g, ''));
+                                if (!isNaN(val)) currentRow.stock[size.label] += val;
                             }
                         });
                     }
-                });
+                }
                 return processed;
-            };
-
-            const getName = (row) => {
-                 const idKeys = ['ชื่อสินค้า35MM', 'Product Name', 'ชื่อสินค้า', 'Name', 'Code', 'รหัส'];
-                 const key = Object.keys(row).find(k => idKeys.some(idk => k.toLowerCase().includes(idk.toLowerCase())));
-                 return row[key] || 'Unknown';
             };
 
             const handleInputChange = (e) => {
@@ -538,12 +611,10 @@
                 setSearchQuery(val);
                 if (val.length > 1) {
                     const lower = val.toLowerCase();
-                    const matches = data.filter(row => {
-                        const name = getName(row);
-                        const code = String(Object.values(row)[0] || ''); // First column usually code
-                        return name.toLowerCase().includes(lower) || code.toLowerCase().includes(lower);
-                    }).slice(0, 10);
-                    setSuggestions(matches);
+                    setSuggestions(data.filter(item => 
+                        item.code.toLowerCase().includes(lower) || 
+                        item.name.toLowerCase().includes(lower)
+                    ).slice(0, 10));
                     setShowSuggestions(true);
                 } else {
                     setSuggestions([]);
@@ -551,11 +622,9 @@
                 }
             };
 
-            const handleSuggestionClick = (row) => {
-                const keys = Object.keys(row);
-                const code = row[keys[0]]; // Use Code
-                setSearchQuery(code);
-                setSearchResult(row);
+            const handleSuggestionClick = (item) => {
+                setSearchQuery(item.code);
+                setSearchResult(item);
                 setError('');
                 setSuggestions([]);
                 setShowSuggestions(false);
@@ -565,26 +634,13 @@
                 e.preventDefault();
                 if (!searchQuery.trim()) return;
                 const query = searchQuery.trim().toLowerCase();
-                const found = data.find(row => Object.values(row).some(val => val && val.toString().toLowerCase().includes(query)));
+                
+                let found = data.find(item => item.code.toLowerCase() === query);
+                if (!found) found = data.find(item => item.code.toLowerCase().includes(query));
+                
                 if (found) { setSearchResult(found); setError(''); }
                 else { setSearchResult(null); setError(`ไม่พบรหัส: ${searchQuery}`); }
                 setShowSuggestions(false);
-            };
-
-            const displayColumns = [
-                { label: '4.0 ft', keys: ['ใบ 4ft', '4ft', '4.0'] },
-                { label: '4.5 ft', keys: ['ใบ 4.5ft', '4.5ft', '4.5'] },
-                { label: '5.0 ft', keys: ['ใบ 5ft', '5ft', '5.0'] },
-                { label: '5.5 ft', keys: ['ใบ 5.5ft', '5.5ft', '5.5'] },
-                { label: '6.0 ft', keys: ['ใบ 6ft', '6ft', '6.0'] },
-                { label: '6.5 ft', keys: ['ใบ 6.5ft', '6.5ft', '6.5'] },
-                { label: '7.0 ft', keys: ['ใบ 7ft', '7ft', '7.0'] },
-                { label: '8.0 ft', keys: ['ใบ 8ft', '8ft', '8.0'] },
-            ];
-
-            const getValue = (row, keys) => {
-                const foundKey = Object.keys(row).find(k => keys.some(search => k.toLowerCase().replace(/\s/g,'').includes(search.toLowerCase().replace(/\s/g,''))));
-                return foundKey ? row[foundKey] : '-';
             };
 
             return (
@@ -618,42 +674,83 @@
                             </button>
                         </form>
                         
+                        {/* View All Button */}
+                        <button onClick={() => setShowAll(true)} disabled={loading || data.length === 0} className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors border ${theme.border} ${theme.textSub} bg-white flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50`}>
+                            <Icons.FileText size={16}/> ดูตารางสต็อกทั้งหมด ({data.length})
+                        </button>
+                        
                         {/* Suggestions List */}
                         {showSuggestions && suggestions.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
-                                {suggestions.map((row, idx) => {
-                                    const keys = Object.keys(row);
-                                    const code = row[keys[0]];
-                                    const name = getName(row);
-                                    return (
+                            <div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
+                                {suggestions.map((item, idx) => (
                                     <div 
                                         key={idx}
-                                        onClick={() => handleSuggestionClick(row)}
+                                        onClick={() => handleSuggestionClick(item)}
                                         className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors"
                                     >
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-slate-700">{code}</span>
-                                            <span className="text-[10px] text-slate-400">{name}</span>
+                                            <span className="font-bold text-slate-700">{item.code}</span>
+                                            <span className="text-[10px] text-slate-400">{item.name}</span>
                                         </div>
                                         <span className="text-xs text-slate-400">เลือก</span>
                                     </div>
-                                )})}
+                                ))}
                             </div>
                         )}
 
                         {error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}
                     </div>
 
+                    {/* View All Modal */}
+                    {showAll && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                            <div className={`bg-white rounded-[2rem] w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                                 <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                                    <h3 className="font-bold text-lg">สต็อกทั้งหมด ({data.length})</h3>
+                                    <button onClick={() => setShowAll(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                                 </div>
+                                 <div className="flex-1 overflow-auto p-0">
+                                    <table className="w-full text-sm border-collapse border border-slate-200">
+                                        <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
+                                            <tr>
+                                                <th className="p-3 text-left bg-slate-100 min-w-[150px] border border-slate-300">สินค้า (รหัส/ชื่อ)</th>
+                                                {sizeMap.map((col, i) => <th key={i} className="p-3 text-center whitespace-nowrap bg-slate-100 border border-slate-300">{col.label}</th>)}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {data.filter(item => item.name !== 'Unknown').map((item, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 border border-slate-200 align-top">
+                                                        <div className="text-lg font-black text-slate-800 font-mono tracking-tight">{item.code}</div>
+                                                        <div className="text-xs text-slate-500 mt-0.5">{item.name}</div>
+                                                    </td>
+                                                    {sizeMap.map((col, j) => {
+                                                        const val = item.stock[col.label];
+                                                        const hasStock = val > 0;
+                                                        return <td key={j} className={`p-3 text-center border border-slate-200 align-middle ${hasStock ? 'text-green-600 font-bold bg-green-50/20' : 'bg-red-50/10'}`}>
+                                                            {hasStock ? val : <span className="text-red-500 text-[10px] font-bold">สินค้าหมด</span>}
+                                                        </td>
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                 </div>
+                            </div>
+                        </div>
+                    )}
+
                     {searchResult && (
                         <div className="animate-scale-in">
                             <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border}`}>
                                 <div className={`${theme.bgSoft} p-5 border-b border-white/50`}>
-                                    <h3 className={`text-2xl font-bold ${theme.textMain}`}>{getName(searchResult)}</h3>
+                                    <h3 className={`text-4xl font-black ${theme.textMain} font-mono tracking-tight`}>{searchResult.code}</h3>
+                                    <p className={`text-sm ${theme.textSub} mt-2 font-medium`}>{searchResult.name}</p>
                                 </div>
                                 <div className="p-5 grid grid-cols-3 gap-3">
-                                    {displayColumns.map((col, i) => { 
-                                        const val = getValue(searchResult, col.keys); 
-                                        const hasStock = val !== '-' && parseFloat(val) > 0; 
+                                    {sizeMap.map((col, i) => { 
+                                        const val = searchResult.stock[col.label];
+                                        const hasStock = val > 0; 
                                         return (
                                             <div key={i} className={`relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-md ${hasStock ? 'bg-white border-green-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
                                                 <div className="flex justify-between items-start mb-2">
@@ -662,7 +759,10 @@
                                                 </div>
                                                 <div className="text-lg font-bold text-slate-700">{col.label}</div>
                                                 <div className="mt-3 flex items-end justify-between">
-                                                    <span className="text-3xl font-black tracking-tighter text-slate-800">{val}</span>
+                                                    {hasStock ? 
+                                                        <span className="text-3xl font-black tracking-tighter text-slate-800">{val}</span> : 
+                                                        <span className="text-lg font-bold text-red-500">สินค้าหมด</span>
+                                                    }
                                                 </div>
                                             </div>
                                         ) 
@@ -686,6 +786,8 @@
             const [showDebug, setShowDebug] = useState(false);
             const [suggestions, setSuggestions] = useState([]);
             const [showSuggestions, setShowSuggestions] = useState(false);
+            const [showAll, setShowAll] = useState(false);
+
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1019928538&single=true&output=csv';
 
             useEffect(() => { setLoading(true); Papa.parse(SHEET_URL, { download: true, header: false, skipEmptyLines: true, complete: (res) => { setData(res.data); setLoading(false); }, error: () => setLoading(false) }); }, []);
@@ -704,8 +806,67 @@
             return (
                 <div className="pt-20 px-5 pb-40 fade-in h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-6"><button onClick={onBack} className={`p-2 rounded-full border bg-white ${theme.border} ${theme.textSub}`}><Icons.ChevronDown className="rotate-90" size={20} /></button><h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกม่านม้วน</h2></div>
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>{showSuggestions && suggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(row[0]); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{row[0]}</span><span className="text-[10px] text-slate-400">{row[1]}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
-                    {searchResult && (<div className="animate-scale-in"><div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3><div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div><div className="w-full h-px bg-slate-100 mb-6"></div><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3><div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div><div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>{showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}<button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button></div></div>)}
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>
+                    {/* View All Button */}
+                    <button onClick={() => setShowAll(true)} disabled={loading || data.length === 0} className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors border ${theme.border} ${theme.textSub} bg-white flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50`}>
+                        <Icons.FileText size={16}/> ดูตารางสต็อกทั้งหมด ({data.length})
+                    </button>
+                    {showSuggestions && suggestions.length > 0 && (<div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(row[0]); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{row[0]}</span><span className="text-[10px] text-slate-400">{row[1]}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    
+                    {/* View All Modal */}
+                    {showAll && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                            <div className={`bg-white rounded-[2rem] w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                                 <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                                    <h3 className="font-bold text-lg">สต็อกทั้งหมด ({data.length})</h3>
+                                    <button onClick={() => setShowAll(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                                 </div>
+                                 <div className="flex-1 overflow-auto p-0">
+                                    <table className="w-full text-sm border-collapse border border-slate-200">
+                                        <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
+                                            <tr>
+                                                <th className="p-3 text-left bg-slate-100 border border-slate-300">รหัสสินค้า</th>
+                                                <th className="p-3 text-left bg-slate-100 border border-slate-300">ชื่อสินค้า</th>
+                                                <th className="p-3 text-right bg-slate-100 border border-slate-300">คงเหลือ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {data.map((row, i) => {
+                                                const qty = parseFloat(row[2]);
+                                                const hasStock = qty > 0;
+                                                return (
+                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-bold text-slate-700 font-mono border border-slate-200">{row[0]}</td>
+                                                    <td className="p-3 text-slate-600 border border-slate-200">{row[1]}</td>
+                                                    <td className={`p-3 text-right font-bold border border-slate-200 ${hasStock ? 'text-green-600' : 'bg-red-50/20'}`}>
+                                                        {hasStock ? row[2] : <span className="text-red-500 text-xs font-bold">สินค้าหมด</span>}
+                                                    </td>
+                                                </tr>
+                                            )})}
+                                        </tbody>
+                                    </table>
+                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {searchResult && (
+                        <div className="animate-scale-in">
+                            <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3>
+                                <div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div>
+                                <div className="w-full h-px bg-slate-100 mb-6"></div>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3>
+                                {parseFloat(searchResult[2]) > 0 ? 
+                                    <div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div> : 
+                                    <div className="text-4xl font-bold text-red-500">สินค้าหมด</div>
+                                }
+                                <div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>
+                                {showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}
+                                <button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -719,6 +880,8 @@
             const [showDebug, setShowDebug] = useState(false);
             const [suggestions, setSuggestions] = useState([]);
             const [showSuggestions, setShowSuggestions] = useState(false);
+            const [showAll, setShowAll] = useState(false);
+
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1880232984&single=true&output=csv';
 
             useEffect(() => { setLoading(true); Papa.parse(SHEET_URL, { download: true, header: false, skipEmptyLines: true, complete: (res) => { setData(res.data); setLoading(false); }, error: () => setLoading(false) }); }, []);
@@ -737,8 +900,67 @@
             return (
                 <div className="pt-20 px-5 pb-40 fade-in h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-6"><button onClick={onBack} className={`p-2 rounded-full border bg-white ${theme.border} ${theme.textSub}`}><Icons.ChevronDown className="rotate-90" size={20} /></button><h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกมู่ลี่อลูมิเนียม</h2></div>
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>{showSuggestions && suggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(row[0]); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{row[0]}</span><span className="text-[10px] text-slate-400">{row[1]}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
-                    {searchResult && (<div className="animate-scale-in"><div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3><div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div><div className="w-full h-px bg-slate-100 mb-6"></div><h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3><div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div><div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>{showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}<button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button></div></div>)}
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>
+                    {/* View All Button */}
+                    <button onClick={() => setShowAll(true)} disabled={loading || data.length === 0} className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors border ${theme.border} ${theme.textSub} bg-white flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50`}>
+                        <Icons.FileText size={16}/> ดูตารางสต็อกทั้งหมด ({data.length})
+                    </button>
+                    {showSuggestions && suggestions.length > 0 && (<div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(row[0]); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{row[0]}</span><span className="text-[10px] text-slate-400">{row[1]}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    
+                    {/* View All Modal */}
+                    {showAll && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                            <div className={`bg-white rounded-[2rem] w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                                 <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                                    <h3 className="font-bold text-lg">สต็อกทั้งหมด ({data.length})</h3>
+                                    <button onClick={() => setShowAll(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                                 </div>
+                                 <div className="flex-1 overflow-auto p-0">
+                                    <table className="w-full text-sm border-collapse border border-slate-200">
+                                        <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
+                                            <tr>
+                                                <th className="p-3 text-left bg-slate-100 border border-slate-300">รหัสสินค้า</th>
+                                                <th className="p-3 text-left bg-slate-100 border border-slate-300">ชื่อสินค้า</th>
+                                                <th className="p-3 text-right bg-slate-100 border border-slate-300">คงเหลือ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {data.map((row, i) => {
+                                                const qty = parseFloat(row[2]);
+                                                const hasStock = qty > 0;
+                                                return (
+                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-bold text-slate-700 font-mono border border-slate-200">{row[0]}</td>
+                                                    <td className="p-3 text-slate-600 border border-slate-200">{row[1]}</td>
+                                                    <td className={`p-3 text-right font-bold border border-slate-200 ${hasStock ? 'text-green-600' : 'bg-red-50/20'}`}>
+                                                        {hasStock ? row[2] : <span className="text-red-500 text-xs font-bold">สินค้าหมด</span>}
+                                                    </td>
+                                                </tr>
+                                            )})}
+                                        </tbody>
+                                    </table>
+                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {searchResult && (
+                        <div className="animate-scale-in">
+                            <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border} text-center p-8`}>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>สินค้า</h3>
+                                <div className={`text-3xl font-bold ${theme.textMain} mb-6`}>{searchResult[1]}</div>
+                                <div className="w-full h-px bg-slate-100 mb-6"></div>
+                                <h3 className={`text-sm font-bold uppercase tracking-wider ${theme.textSub} mb-2`}>จำนวนคงเหลือ</h3>
+                                {parseFloat(searchResult[2]) > 0 ? 
+                                    <div className={`text-6xl font-black ${theme.highlight}`}>{searchResult[2]}</div> : 
+                                    <div className="text-4xl font-bold text-red-500">สินค้าหมด</div>
+                                }
+                                <div className="mt-2 text-sm text-slate-400">หน่วย (ถ้ามี)</div>
+                                {showDebug && <div className="mt-8 p-4 bg-slate-800 text-white text-xs text-left"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}
+                                <button onClick={() => setShowDebug(!showDebug)} className="mt-4 text-[10px] text-slate-300 underline">{showDebug ? 'Hide' : 'Debug'}</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -752,79 +974,245 @@
             const [showDebug, setShowDebug] = useState(false);
             const [suggestions, setSuggestions] = useState([]);
             const [showSuggestions, setShowSuggestions] = useState(false);
+            const [showAll, setShowAll] = useState(false);
 
             const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQz2OtjzRBmeUmLOTSgJ-Bt2woZPiR9QyzvIWcBXacheG3IplefFZE66yWYE43qVRQo2DAOPu9UClh5/pub?gid=1230787558&single=true&output=csv';
 
+            // Fixed columns definition for PVC
+            const heightColumns = [
+                '2.00', '2.20', '2.40', '2.60', '2.80', '3.00', 
+                '3.20', '3.30', '3.50', '3.70', '3.75'
+            ];
+
             useEffect(() => {
                 setLoading(true);
+                // Use header: false to handle duplicate headers manually and prevent data loss
                 Papa.parse(SHEET_URL, {
-                    download: true, header: true, skipEmptyLines: true,
-                    transformHeader: (h) => h.trim(),
+                    download: true, header: false, skipEmptyLines: true,
                     complete: (results) => { setData(preprocessData(results.data)); setLoading(false); },
                     error: () => { setError('ไม่สามารถดึงข้อมูลสต็อกได้'); setLoading(false); }
                 });
             }, []);
 
-            const preprocessData = (rawData) => {
-                if (!rawData || rawData.length === 0) return [];
+            const preprocessData = (rows) => {
+                if (!rows || rows.length < 2) return [];
+                
+                // 1. Hunt for the Header Row and Column Indices
+                let headerRowIndex = -1;
+                let codeIdx = -1;
+                let nameIdx = -1;
+                let heightStartIdx = -1;
+
+                // Look through first 5 rows for a known header pattern
+                for (let i = 0; i < Math.min(rows.length, 5); i++) {
+                    // Normalize cell content for checking
+                    const row = rows[i].map(cell => String(cell).trim().toLowerCase());
+                    
+                    // Look for indicators
+                    const hIdx = row.findIndex(c => c.includes('2.00') || c.includes('ความสูง'));
+                    const cIdx = row.findIndex(c => c === 'code' || c === 'รหัส' || c.includes('product code') || c.includes('รหัสสินค้า'));
+                    
+                    if (hIdx !== -1 || cIdx !== -1) {
+                        headerRowIndex = i;
+                        // If 2.00 is found, use it. If not, guess it's column 2 or 3 depending on name/code
+                        heightStartIdx = hIdx !== -1 ? hIdx : 2; 
+                        
+                        // If Code found, use it. Else default to 0
+                        codeIdx = cIdx !== -1 ? cIdx : 0;
+                        
+                        // Try to find name (Name, Product Name, ชื่อ)
+                        const nIdx = row.findIndex(c => c === 'name' || c === 'ชื่อ' || c.includes('product name') || c.includes('ชื่อสินค้า'));
+                        nameIdx = nIdx !== -1 ? nIdx : (codeIdx === 0 ? 1 : 0);
+                        
+                        // Safety: If Name and Code are same (not found), separate them
+                        if (nameIdx === codeIdx) nameIdx = codeIdx + 1;
+                        
+                        break;
+                    }
+                }
+
+                // 2. Fallback if NO header detected (The "Blind Read" mode)
+                if (headerRowIndex === -1) {
+                    console.warn("No header detected, using fallback indices.");
+                    headerRowIndex = 0; // Assume first row is header
+                    codeIdx = 0;        // Col A = Code
+                    nameIdx = 1;        // Col B = Name
+                    heightStartIdx = 2; // Col C = Start of Data (2.00)
+                }
+
                 const processed = [];
                 let currentRow = null;
-                const idKeys = ['Code', 'รหัส', 'Product Code', 'Item Code', 'ชื่อสินค้า', 'Product Name'];
-                let idKey = Object.keys(rawData[0]).find(k => idKeys.some(idk => k.toLowerCase().includes(idk.toLowerCase()))) || Object.keys(rawData[0])[0];
-                rawData.forEach(row => {
-                    const idValue = row[idKey];
-                    if (idValue && String(idValue).trim().length > 0) { currentRow = { ...row }; processed.push(currentRow); } 
-                    else if (currentRow) { Object.keys(row).forEach(key => { if (key === idKey) return; const val = parseFloat(String(row[key] || '').replace(/,/g, '')); if (!isNaN(val)) { const currentVal = parseFloat(String(currentRow[key] || '').replace(/,/g, '')) || 0; currentRow[key] = String(currentVal + val); } }); }
-                });
+
+                // 3. Process Data Rows
+                for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    // Skip empty rows or rows that are too short to contain data
+                    if (!row || row.length < 2) continue;
+
+                    const rawCode = row[codeIdx];
+                    const rawName = row[nameIdx];
+
+                    // Check if this row starts a new item (has a Code that isn't empty)
+                    if (rawCode && String(rawCode).trim().length > 0) {
+                        currentRow = {
+                            code: String(rawCode).trim(),
+                            name: rawName ? String(rawName).trim() : 'Unknown',
+                            stock: {}
+                        };
+                        
+                        // Map height columns strictly by order relative to start index
+                        heightColumns.forEach((hKey, index) => {
+                            const colIdx = heightStartIdx + index;
+                            if (colIdx < row.length) {
+                                // Clean the value (remove commas, handle non-numeric)
+                                const valStr = String(row[colIdx] || '').replace(/,/g, '').trim();
+                                const val = parseFloat(valStr);
+                                currentRow.stock[hKey] = !isNaN(val) ? val : 0;
+                            } else {
+                                currentRow.stock[hKey] = 0;
+                            }
+                        });
+                        
+                        processed.push(currentRow);
+                    } else if (currentRow) {
+                        // Merge logic for rows without code (continuation lines)
+                        // Useful if data is split across multiple rows for the same item
+                         heightColumns.forEach((hKey, index) => {
+                            const colIdx = heightStartIdx + index;
+                            if (colIdx < row.length) {
+                                const valStr = String(row[colIdx] || '').replace(/,/g, '').trim();
+                                const val = parseFloat(valStr);
+                                if (!isNaN(val)) {
+                                    currentRow.stock[hKey] = (currentRow.stock[hKey] || 0) + val;
+                                }
+                            }
+                        });
+                    }
+                }
+                
                 return processed;
             };
 
-            const getName = (row) => { const keys = Object.keys(row); const nameKey = keys.find(k => ['name', 'product', 'ชื่อ', 'item'].some(s => k.toLowerCase().includes(s))); return row[nameKey] || 'Unknown'; };
-            const getCode = (row) => { const keys = Object.keys(row); const codeKey = keys.find(k => ['code', 'รหัส'].some(s => k.toLowerCase().includes(s))) || keys[0]; return row[codeKey] || ''; };
-            const handleInputChange = (e) => { const val = e.target.value; setSearchQuery(val); if (val.length > 1) { const lower = val.toLowerCase(); setSuggestions(data.filter(row => { const code = String(getCode(row)).toLowerCase(); const name = String(getName(row)).toLowerCase(); return code.includes(lower) || name.includes(lower); }).slice(0, 10)); setShowSuggestions(true); } else { setSuggestions([]); setShowSuggestions(false); } };
-            const handleSearch = (e) => { e.preventDefault(); const query = searchQuery.toLowerCase(); const found = data.find(row => String(getCode(row)).toLowerCase().includes(query)); if(found) { setSearchResult(found); setError(''); } else { setSearchResult(null); setError('ไม่พบข้อมูล'); } setShowSuggestions(false); };
+            const handleInputChange = (e) => { 
+                const val = e.target.value; 
+                setSearchQuery(val); 
+                if (val.length > 1) { 
+                    const lower = val.toLowerCase(); 
+                    setSuggestions(data.filter(item => 
+                        item.code.toLowerCase().includes(lower) || 
+                        item.name.toLowerCase().includes(lower)
+                    ).slice(0, 10)); 
+                    setShowSuggestions(true); 
+                } else { 
+                    setSuggestions([]); setShowSuggestions(false); 
+                } 
+            };
 
-            const renderStockGrid = () => {
-                 if (!searchResult) return null;
-                 const headerMap = { 'ความสูง': '2.00 เมตร', 'ม.': '2.20 เมตร', '_1 ม.': '2.40 เมตร', '_2 ม.': '2.60 เมตร', '_3 ม.': '2.80 เมตร', '_4 ม.': '3.00 เมตร', '_5 ม.': '3.20 เมตร', '_6 ม.': '3.30 เมตร', '_7 ม.': '3.50 เมตร', '_8 ม.': '3.70 เมตร', '_9 ม.': '3.75 เมตร' };
-                 const targetKeys = Object.keys(headerMap);
-                 const availableKeys = targetKeys.filter(k => searchResult[k] !== undefined);
-                 let keysToRender = availableKeys.length > 0 ? availableKeys : Object.keys(searchResult).filter(key => { const lowerKey = key.toLowerCase(); const ignoreKeys = ['code', 'รหัส', 'product', 'name', 'ชื่อ', 'description', 'item', 'no', 'ลำดับ']; return !ignoreKeys.some(ignore => lowerKey.includes(ignore)); });
-
-                 return (
-                     <div className="p-5 grid grid-cols-3 gap-3">
-                         {keysToRender.map((key, index) => {
-                             const val = searchResult[key];
-                             const numVal = parseFloat(String(val).replace(/,/g,''));
-                             const hasStock = !isNaN(numVal) && numVal > 0;
-                             const label = headerMap[key] || key;
-                             return (
-                                 <div key={index} className={`relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-md ${hasStock ? 'bg-white border-green-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
-                                     <div className="flex justify-between items-start mb-2">
-                                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ความสูง</span>
-                                         <span className={`w-2 h-2 rounded-full ${hasStock ? 'bg-green-500' : 'bg-slate-300'}`}></span>
-                                     </div>
-                                     <div className="text-lg font-bold text-slate-700">{label}</div>
-                                     <div className="mt-3 flex items-end justify-between">
-                                         <span className="text-3xl font-black tracking-tighter text-slate-800">{val}</span>
-                                     </div>
-                                 </div>
-                             )
-                         })}
-                     </div>
-                 )
+            const handleSearch = (e) => { 
+                e.preventDefault(); 
+                const query = searchQuery.toLowerCase(); 
+                // Exact match first, then partial
+                let found = data.find(item => item.code.toLowerCase() === query);
+                if (!found) found = data.find(item => item.code.toLowerCase().includes(query));
+                
+                if(found) { setSearchResult(found); setError(''); } 
+                else { setSearchResult(null); setError('ไม่พบข้อมูล'); } 
+                setShowSuggestions(false); 
             };
 
             return (
                 <div className="pt-20 px-5 pb-40 fade-in h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-6"><button onClick={onBack} className={`p-2 rounded-full border bg-white ${theme.border} ${theme.textSub}`}><Icons.ChevronDown className="rotate-90" size={20} /></button><h2 className={`text-xl font-bold ${theme.textMain}`}>เช็คสต็อกฉาก PVC</h2></div>
-                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}><form onSubmit={handleSearch} className="relative"><input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} /><div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div><button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button></form>{showSuggestions && suggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">{suggestions.map((row, idx) => (<div key={idx} onClick={() => { setSearchQuery(getCode(row)); setSearchResult(row); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center"><div className="flex flex-col"><span className="font-bold text-slate-700">{getCode(row)}</span><span className="text-[10px] text-slate-400">{getName(row)}</span></div></div>))}</div>)}{error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}</div>
+                    
+                    {/* Search Section */}
+                    <div className={`bg-white rounded-[2rem] p-6 shadow-sm border ${theme.border} mb-6 relative`}>
+                        <form onSubmit={handleSearch} className="relative">
+                            <input type="text" value={searchQuery} onChange={handleInputChange} onFocus={() => searchQuery.length > 1 && setShowSuggestions(true)} placeholder="พิมพ์รหัสสินค้า..." className={`input-apple w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 font-bold text-lg ${theme.textMain} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-100`} />
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Icons.Box size={24} /></div>
+                            <button type="submit" className={`absolute right-2 top-2 bottom-2 px-4 rounded-xl font-bold text-sm transition-colors ${theme.btnPrimary} flex items-center justify-center`} disabled={loading}>{loading ? '...' : 'ค้นหา'}</button>
+                        </form>
+                        <button onClick={() => setShowAll(true)} disabled={loading || data.length === 0} className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors border ${theme.border} ${theme.textSub} bg-white flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-50`}><Icons.FileText size={16}/> ดูตารางสต็อกทั้งหมด ({data.length})</button>
+                        
+                        {/* Suggestions */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div className="absolute top-16 left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden max-h-60 overflow-y-auto">
+                                {suggestions.map((item, idx) => (
+                                    <div key={idx} onClick={() => { setSearchQuery(item.code); setSearchResult(item); setShowSuggestions(false); }} className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 flex justify-between items-center">
+                                        <div className="flex flex-col"><span className="font-bold text-slate-700">{item.code}</span><span className="text-[10px] text-slate-400">{item.name}</span></div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {error && <div className="mt-3 text-red-500 text-sm font-bold flex items-center gap-2"><Icons.AlertCircle size={16}/> {error}</div>}
+                    </div>
+                    
+                    {/* View All Modal */}
+                    {showAll && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                            <div className={`bg-white rounded-[2rem] w-full max-w-6xl h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                                 <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                                    <h3 className="font-bold text-lg">สต็อกทั้งหมด ({data.length})</h3>
+                                    <button onClick={() => setShowAll(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                                 </div>
+                                 <div className="flex-1 overflow-auto p-0">
+                                    <table className="w-full text-sm border-collapse border border-slate-200">
+                                        <thead className="bg-slate-100 sticky top-0 shadow-sm z-10 text-slate-600">
+                                            <tr>
+                                                <th className="p-3 text-left bg-slate-100 min-w-[150px] border border-slate-300">สินค้า (รหัส/ชื่อ)</th>
+                                                {heightColumns.map((h, i) => <th key={i} className="p-3 text-center whitespace-nowrap bg-slate-100 border border-slate-300">{h} ม.</th>)}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {data.filter(item => item.name !== 'Unknown').map((item, i) => (
+                                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 border border-slate-200 align-top">
+                                                        <div className="text-lg font-black text-slate-800 font-mono tracking-tight">{item.code}</div>
+                                                        <div className="text-xs text-slate-500 mt-0.5">{item.name}</div>
+                                                    </td>
+                                                    {heightColumns.map((hKey, j) => {
+                                                        const val = item.stock[hKey];
+                                                        const hasStock = val > 0;
+                                                        return <td key={j} className={`p-3 text-center border border-slate-200 align-middle ${hasStock ? 'text-green-600 font-bold bg-green-50/20' : 'bg-red-50/10'}`}>
+                                                            {hasStock ? val : <span className="text-red-500 text-[10px] font-bold">สินค้าหมด</span>}
+                                                        </td>
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Single Result View */}
                     {searchResult && (
                         <div className="animate-scale-in">
                             <div className={`bg-white rounded-[2rem] overflow-hidden shadow-lg border ${theme.border}`}>
-                                <div className={`${theme.bgSoft} p-5 border-b border-white/50`}><h3 className={`text-2xl font-bold ${theme.textMain}`}>{getName(searchResult)}</h3><p className={`text-sm ${theme.textSub} mt-1 font-mono`}>รหัส: {searchQuery}</p></div>
-                                {renderStockGrid()}
-                                {showDebug && <div className="p-4 bg-slate-800 text-white text-xs overflow-x-auto"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}<div className="text-center p-2"><button onClick={() => setShowDebug(!showDebug)} className="text-[10px] text-slate-400 underline">{showDebug ? 'Hide' : 'Debug'}</button></div>
+                                <div className={`${theme.bgSoft} p-5 border-b border-white/50`}>
+                                    <h3 className={`text-4xl font-black ${theme.textMain} font-mono tracking-tight`}>{searchResult.code}</h3>
+                                    <p className={`text-sm ${theme.textSub} mt-2 font-medium`}>{searchResult.name}</p>
+                                </div>
+                                <div className="p-5 grid grid-cols-3 gap-3">
+                                    {heightColumns.map((hKey, index) => {
+                                        const val = searchResult.stock[hKey];
+                                        const hasStock = val > 0;
+                                        return (
+                                            <div key={index} className={`relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-md ${hasStock ? 'bg-white border-green-200 shadow-sm' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                                                <div className="flex justify-between items-start mb-2"><span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ความสูง</span><span className={`w-2 h-2 rounded-full ${hasStock ? 'bg-green-500' : 'bg-slate-300'}`}></span></div>
+                                                <div className="text-lg font-bold text-slate-700">{hKey} ม.</div>
+                                                <div className="mt-3 flex items-end justify-between">
+                                                    {hasStock ? 
+                                                        <span className="text-3xl font-black tracking-tighter text-slate-800">{val}</span> : 
+                                                        <span className="text-lg font-bold text-red-500">สินค้าหมด</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                                {showDebug && <div className="p-4 bg-slate-800 text-white text-xs overflow-x-auto"><pre>{JSON.stringify(searchResult, null, 2)}</pre></div>}
+                                <div className="text-center p-2"><button onClick={() => setShowDebug(!showDebug)} className="text-[10px] text-slate-400 underline">{showDebug ? 'Hide' : 'Debug'}</button></div>
                             </div>
                         </div>
                     )}
@@ -866,6 +1254,9 @@
             const [useInstallFee, setUseInstallFee] = useState(false);
             const [installFee, setInstallFee] = useState('');
 
+            // --- NEW: Editing State ---
+            const [editingId, setEditingId] = useState(null);
+
             const availableModes = useMemo(() => {
                 const modes = [];
                 if (config.showExternal) modes.push({ id: 'external', label: 'ม่านภายนอก', icon: <Icons.Sun size={24} /> });
@@ -900,6 +1291,44 @@
                 { id: 'm_cord', label: 'ราง M ระบบเชือกดึง', price: config.railMCordPrice, unit: 'เมตร' },
             ];
 
+            const handleEdit = (item) => {
+                // Restore state from item.rawParams if available
+                if (item.rawParams) {
+                    const p = item.rawParams;
+                    setCalcMode(p.calcMode);
+                    setAlumSystem(p.alumSystem || 'standard');
+                    setPvcType(p.pvcType || '8.5_solid');
+                    setPvcOpenType(p.pvcOpenType || 'side_1');
+                    setPvcCustomPrice(p.pvcCustomPrice || '');
+                    setRailType(p.railType || 'hospital');
+                    setFormData(p.formData);
+                    setUseInstallFee(p.useInstallFee || false);
+                    setInstallFee(p.installFee || '');
+                } else {
+                    // Fallback for old items without rawParams
+                    setCalcMode(item.type);
+                    setFormData({
+                        width: item.w_cm,
+                        height: item.h_cm,
+                        price: item.unitPrice,
+                        qty: item.qty,
+                        side: item.side,
+                        woodType: 'BASSWOOD' // Default fallback
+                    });
+                }
+                setEditingId(item.id);
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const cancelEdit = () => {
+                setEditingId(null);
+                setFormData({ width: '', height: '', price: '', qty: '1', side: 'ขวา', woodType: 'BASSWOOD' });
+                setUseInstallFee(false);
+                setInstallFee('');
+                setPvcCustomPrice('');
+            };
+
             const calculateItem = () => {
                 const qty = parseInt(formData.qty);
                 if (!qty) return setErrorMsg('กรุณาระบุจำนวน');
@@ -922,9 +1351,6 @@
                     typeName = selectedRail.label;
                     
                     if (railType === 'ceiling_bracket') {
-                        // Formula: Qty * Price (Height input is just for record, Width ignored for price)
-                        // User prompt says: "แป๊ดยึดเพดาน มีช่องกรอกขนาดความสูง ราคา 110/ชุด"
-                        // Formula prompt: "กว้าง*จำนวนชุด*ราคา" (Likely for rails, but for bracket per set, Qty*Price is logical)
                         totalPerUnit = price + installCost;
                         const mainFormula = `${price} บาท x 1 ชุด = ${formatCurrency(price)}`;
                         details = {
@@ -932,7 +1358,6 @@
                             sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}`
                         };
                     } else {
-                        // Formula: Width * Qty * Price
                         if (!w_cm) return setErrorMsg('กรุณากรอกความกว้าง');
                         const w_m = w_cm / 100;
                         const pricePerSet = w_m * price;
@@ -1092,9 +1517,35 @@
                         }
                     }
                 }
-                setItems([...items, { id: generateId(), w_cm, h_cm, w_m: w_cm/100, h_m: h_cm/100, unitPrice: price, qty, side: formData.side, type: calcMode, typeName, totalPerUnit, grandTotal: totalPerUnit * qty, details }]);
+
+                // Store all raw parameters to enable editing later
+                const rawParams = {
+                    calcMode, alumSystem, pvcType, pvcOpenType, pvcCustomPrice, railType, 
+                    formData: { ...formData }, // Clone to avoid ref issues
+                    useInstallFee, installFee
+                };
+
+                const newItem = { 
+                    id: editingId || generateId(), // Use existing ID if editing
+                    w_cm, h_cm, w_m: w_cm/100, h_m: h_cm/100, unitPrice: price, qty, 
+                    side: formData.side, type: calcMode, typeName, totalPerUnit, 
+                    grandTotal: totalPerUnit * qty, details,
+                    rawParams // Save the state
+                };
+
+                if (editingId) {
+                    // Update existing item
+                    setItems(items.map(item => item.id === editingId ? newItem : item));
+                    // Reset editing state
+                    setEditingId(null);
+                } else {
+                    // Add new item
+                    setItems([...items, newItem]);
+                }
+                
+                // Reset form slightly differently if editing or adding
                 setFormData(prev => ({ ...prev, width: '', height: '' }));
-                setUseInstallFee(false); setInstallFee(''); // Reset Install Fee
+                setUseInstallFee(false); setInstallFee(''); 
                 if(calcMode === 'pvc') setPvcCustomPrice('');
             };
 
@@ -1114,11 +1565,13 @@
                     <div className="flex justify-between items-center mb-6"><h2 className={`text-2xl font-bold ${theme.textMain}`}>คำนวณราคา</h2>{items.length > 0 && <button onClick={saveToHistory} className={`text-xs font-bold px-4 py-2 rounded-xl flex gap-2 items-center shadow-sm hover:shadow-md transition-all active:scale-95 hover:-translate-y-0.5 ${theme.btnSecondary}`}><Icons.Save size={16}/> บันทึก</button>}</div>
                     {availableModes.length > 0 ? (
                         <div className="grid grid-cols-2 gap-3 mb-6">
-                            {availableModes.map(mode => (<button key={mode.id} onClick={() => setCalcMode(mode.id)} className={`bento-card relative overflow-hidden rounded-2xl p-3 flex flex-col items-center justify-center gap-2 h-auto py-2 border ${calcMode === mode.id ? `bg-white shadow-lg ring-1 ${theme.inputRing}` : 'bg-white border-white shadow-sm hover:shadow-md'}`}><div className={`p-1.5 rounded-full transition-colors ${calcMode === mode.id ? `${theme.bgSoft} ${theme.primary}` : `bg-slate-50 text-slate-400 group-hover:text-slate-600`}`}>{mode.icon}</div><span className={`text-[11px] font-bold transition-colors ${calcMode === mode.id ? theme.primary : theme.textSub}`}>{mode.label}</span>{calcMode === mode.id && <div className={`absolute inset-x-0 bottom-0 h-1 ${theme.toggleActive}`}></div>}</button>))}
+                            {availableModes.map(mode => (<button key={mode.id} onClick={() => { setCalcMode(mode.id); setEditingId(null); }} className={`bento-card relative overflow-hidden rounded-2xl p-3 flex flex-col items-center justify-center gap-2 h-auto py-2 border ${calcMode === mode.id ? `bg-white shadow-lg ring-1 ${theme.inputRing}` : 'bg-white border-white shadow-sm hover:shadow-md'}`}><div className={`p-1.5 rounded-full transition-colors ${calcMode === mode.id ? `${theme.bgSoft} ${theme.primary}` : `bg-slate-50 text-slate-400 group-hover:text-slate-600`}`}>{mode.icon}</div><span className={`text-[11px] font-bold transition-colors ${calcMode === mode.id ? theme.primary : theme.textSub}`}>{mode.label}</span>{calcMode === mode.id && <div className={`absolute inset-x-0 bottom-0 h-1 ${theme.toggleActive}`}></div>}</button>))}
                         </div>
                     ) : <div className="bg-white p-6 rounded-2xl text-center text-slate-400 border border-dashed border-slate-300 mb-6 font-bold">ปิดปรับปรุงระบบคำนวณชั่วคราว</div>}
                     {availableModes.length > 0 && (
-                        <div className={`bg-white rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white p-6 mb-6 relative overflow-hidden scale-in`}>
+                        <div className={`bg-white rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white p-6 mb-6 relative overflow-hidden scale-in ${editingId ? 'ring-2 ring-orange-400' : ''}`}>
+                            {editingId && <div className="mb-4 text-xs font-bold text-orange-500 flex items-center gap-2 bg-orange-50 p-2 rounded-lg"><Icons.Edit size={14}/> กำลังแก้ไขรายการ</div>}
+                            
                             {calcMode === 'rail' && (<div className="mb-6 space-y-4"><div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ประเภทราง</label><select value={railType} onChange={(e) => setRailType(e.target.value)} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-3 font-bold text-slate-700`}>{railOptions.map(r => (<option key={r.id} value={r.id}>{r.label} ({r.price}/{r.unit})</option>))}</select></div></div>)}
                             {calcMode === 'pvc' && (<div className="mb-6 space-y-4"><div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ประเภทใบ/ราคา</label><select value={pvcType} onChange={(e) => setPvcType(e.target.value)} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-3 font-bold text-slate-700`}>{pvcPriceOptions.map(p => (<option key={p.id} value={p.id}>{p.label} {p.price !== 'manual' ? `(${p.price})` : ''}</option>))}</select></div>{(pvcPriceOptions.find(p => p.id === pvcType)?.price === 'manual') && (<div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>ระบุราคา (บาท/ตร.ล.)</label><input type="number" value={pvcCustomPrice} onChange={(e) => setPvcCustomPrice(e.target.value)} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-3 font-bold text-xl text-slate-700`} placeholder="ระบุราคา..." /></div>)}<div><label className={`text-xs font-bold uppercase tracking-wider mb-2 block ml-1 ${theme.textSub}`}>รูปแบบการเปิด</label><select value={pvcOpenType} onChange={(e) => setPvcOpenType(e.target.value)} className={`input-apple w-full bg-white border ${theme.border} rounded-xl p-3 font-bold text-slate-700`}>{pvcOpeningOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</select></div></div>)}
                             {calcMode === 'aluminum' && (<div className="mb-6"><label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>เลือกระบบ</label><div className={`flex flex-col gap-2`}><div className="flex gap-2"><button onClick={() => setAlumSystem('standard')} className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'standard' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>ธรรมดา (ลด 60%+5%)</button><button onClick={() => setAlumSystem('chain')} className={`flex-1 py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'chain' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>โซ่วน (ลด 60%)</button></div><button onClick={() => setAlumSystem('wood_pattern')} className={`w-full py-3 rounded-xl border font-bold text-sm transition-all ${alumSystem === 'wood_pattern' ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}>ลายไม้ (ตร.ม. ละ {config.aluminumWoodPrice})</button></div></div>)}
@@ -1159,10 +1612,20 @@
                             </div>
 
                             {errorMsg && <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl flex items-center gap-3 animate-pulse border border-red-100"><Icons.AlertCircle size={20} /> {errorMsg}</div>}
-                            <button onClick={calculateItem} className={`w-full font-bold text-lg py-4 rounded-2xl shadow-lg active:scale-95 transition-all flex justify-center items-center gap-2 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.Plus size={24} /> เพิ่มรายการ</button>
+                            
+                            <div className="flex gap-3">
+                                {editingId && (
+                                    <button onClick={cancelEdit} className={`flex-1 font-bold text-lg py-4 rounded-2xl border border-slate-200 text-slate-500 active:scale-95 transition-all flex justify-center items-center gap-2 hover:bg-slate-50`}>
+                                        ยกเลิก
+                                    </button>
+                                )}
+                                <button onClick={calculateItem} className={`flex-[2] font-bold text-lg py-4 rounded-2xl shadow-lg active:scale-95 transition-all flex justify-center items-center gap-2 hover:-translate-y-1 ${editingId ? 'bg-orange-500 text-white shadow-orange-200 hover:bg-orange-600' : theme.btnPrimary}`}>
+                                    {editingId ? <><Icons.CheckCircle size={24} /> บันทึกการแก้ไข</> : <><Icons.Plus size={24} /> เพิ่มรายการ</>}
+                                </button>
+                            </div>
                         </div>
                     )}
-                    {items.length > 0 && (<div className="space-y-4 pb-20"><div className="flex justify-between items-center px-4"><span className={`text-sm font-bold uppercase tracking-wider ${theme.textSub}`}>รายการ ({items.length})</span><button onClick={() => setItems([])} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${theme.btnSecondary}`}><Icons.Trash2 size={14}/> ล้าง</button></div>{items.map((item) => (<div key={item.id} className={`bg-white p-5 rounded-2xl border border-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] relative group scale-in hover:scale-[1.02] transition-transform`}><button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${theme.textSub} hover:${theme.primary} hover:${theme.bgSoft}`}><Icons.X size={18} /></button><div className="flex items-center gap-3 mb-4"><div className={`p-2 rounded-xl ${theme.bgSoft} ${theme.primary}`}>{item.type === 'external' ? <Icons.Sun size={18} /> : item.type === 'wooden' ? <Icons.Blinds size={18} /> : item.type === 'aluminum' ? <Icons.Blinds size={18} /> : item.type === 'pvc' ? <Icons.Fold size={18} /> : item.type === 'rail' ? <Icon path={<line x1="2" y1="12" x2="22" y2="12"></line>} size={18} /> : <Icons.Roller size={18} />}</div><span className={`text-sm font-bold ${theme.textMain}`}>{item.typeName}</span></div><div className="flex justify-between items-end"><div><div className={`text-lg font-bold font-mono tracking-tight ${theme.textMain}`}>{item.w_cm || '-'} <span className="text-slate-400 text-sm">x</span> {item.h_cm || '-'} <span className="text-xs text-slate-400 font-sans">cm</span></div><div className={`text-xs font-medium mt-1 inline-block px-2 py-1 rounded-md border border-slate-100 ${theme.textSub} ${theme.bgSoft}`}>จำนวน {item.qty} ชุด • ปรับ{item.side}</div></div><div className={`text-xl font-bold ${theme.highlight}`}>{formatCurrency(item.grandTotal)}</div></div></div>))}<button onClick={() => setShowQuote(true)} className={`w-full px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg active:scale-95 transition-all mt-4 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button></div>)}
+                    {items.length > 0 && (<div className="space-y-4 pb-20"><div className="flex justify-between items-center px-4"><span className={`text-sm font-bold uppercase tracking-wider ${theme.textSub}`}>รายการ ({items.length})</span><button onClick={() => setItems([])} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${theme.btnSecondary}`}><Icons.Trash2 size={14}/> ล้าง</button></div>{items.map((item) => (<div key={item.id} className={`bg-white p-5 rounded-2xl border border-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] relative group scale-in hover:scale-[1.02] transition-transform ${editingId === item.id ? 'ring-2 ring-orange-400 opacity-50' : ''}`}><div className="absolute top-4 right-4 flex gap-2"><button onClick={() => handleEdit(item)} disabled={!!editingId} className={`p-2 rounded-full transition-colors ${theme.textSub} hover:text-orange-500 hover:bg-orange-50 disabled:opacity-30`}><Icons.Edit size={18} /></button><button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} disabled={!!editingId} className={`p-2 rounded-full transition-colors ${theme.textSub} hover:${theme.primary} hover:${theme.bgSoft} disabled:opacity-30`}><Icons.X size={18} /></button></div><div className="flex items-center gap-3 mb-4"><div className={`p-2 rounded-xl ${theme.bgSoft} ${theme.primary}`}>{item.type === 'external' ? <Icons.Sun size={18} /> : item.type === 'wooden' ? <Icons.Blinds size={18} /> : item.type === 'aluminum' ? <Icons.Blinds size={18} /> : item.type === 'pvc' ? <Icons.Fold size={18} /> : item.type === 'rail' ? <Icon path={<line x1="2" y1="12" x2="22" y2="12"></line>} size={18} /> : <Icons.Roller size={18} />}</div><span className={`text-sm font-bold ${theme.textMain}`}>{item.typeName}</span></div><div className="flex justify-between items-end"><div><div className={`text-lg font-bold font-mono tracking-tight ${theme.textMain}`}>{item.w_cm || '-'} <span className="text-slate-400 text-sm">x</span> {item.h_cm || '-'} <span className="text-xs text-slate-400 font-sans">cm</span></div><div className={`text-xs font-medium mt-1 inline-block px-2 py-1 rounded-md border border-slate-100 ${theme.textSub} ${theme.bgSoft}`}>จำนวน {item.qty} ชุด • ปรับ{item.side}</div></div><div className={`text-xl font-bold ${theme.highlight}`}>{formatCurrency(item.grandTotal)}</div></div></div>))}<button onClick={() => setShowQuote(true)} className={`w-full px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg active:scale-95 transition-all mt-4 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button></div>)}
                     {showQuote && <QuotationModal items={items} onClose={() => setShowQuote(false)} config={config} userProfile={userProfile} theme={theme} />}
                 </div>
             );
