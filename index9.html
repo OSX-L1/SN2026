@@ -343,7 +343,7 @@
                                 </div>
                                 <table className="w-full text-sm mb-auto">
                                     <thead><tr className="bg-red-600 text-white"><th className="py-2 px-3 text-center w-12 rounded-tl-lg">ลำดับ</th><th className="py-2 px-3 text-left">รายการสินค้า</th><th className="py-2 px-3 text-center whitespace-nowrap">ขนาด (cm)</th><th className="py-2 px-3 text-center">ปรับ</th><th className="py-2 px-3 text-center">จำนวน</th><th className="py-2 px-3 text-right">ราคา/หน่วย</th><th className="py-2 px-3 text-right rounded-tr-lg">รวมเงิน</th></tr></thead>
-                                    <tbody className="text-slate-700">{items.map((item, index) => (<React.Fragment key={item.id}><tr className="border-b border-slate-100 hover:bg-slate-50"><td className="py-3 px-3 text-center font-medium text-slate-400">{index + 1}</td><td className="py-3 px-3 font-bold">{item.typeName}</td><td className="py-3 px-3 text-center font-mono text-xs whitespace-nowrap">{item.w_cm} x {item.h_cm}</td><td className="py-3 px-3 text-center">{item.side}</td><td className="py-3 px-3 text-center">{item.qty}</td><td className="py-3 px-3 text-right font-mono">{formatCurrency(item.totalPerUnit)}</td><td className="py-3 px-3 text-right font-bold">{formatCurrency(item.grandTotal)}</td></tr>{showMethod && (<tr className="bg-slate-50 border-b border-slate-100"><td colSpan="7" className="py-2 px-4 text-xs text-slate-500"><div className="font-bold text-slate-700 mb-1">วิธีคำนวณ:</div><ul className="list-disc list-inside space-y-0.5"><li>ผ้า: {item.details.fabricFormula}</li>{item.type === 'external' && (<><li>รางบน: {item.details.topRailFormula}</li><li>รางล่าง: {item.details.bottomRailFormula}</li><li>สลิง: {item.details.slingFormula}</li><li>อุปกรณ์: {formatCurrency(item.details.hardwarePrice)}</li><li className="font-bold text-red-600">รวมต่อชุด: {item.details.sumFormula}</li></>)}{item.type !== 'external' && <li>{item.details.mainFormula}</li>}</ul></td></tr>)}</React.Fragment>))}</tbody>
+                                    <tbody className="text-slate-700">{items.map((item, index) => (<React.Fragment key={item.id}><tr className="border-b border-slate-100 hover:bg-slate-50"><td className="py-3 px-3 text-center font-medium text-slate-400">{index + 1}</td><td className="py-3 px-3"><div className="font-bold">{item.typeName}</div>{(item.installCost > 0 || item.motorCost > 0) && (<div className="text-[11px] text-slate-500 font-normal mt-0.5 space-y-0.5">{item.installCost > 0 && <div className="text-orange-600 font-semibold">+ ค่าติดตั้ง: {formatCurrency(item.installCost)}/ชุด</div>}{item.motorCost > 0 && <div className="text-blue-600 font-semibold">+ ระบบมอเตอร์: {formatCurrency(item.motorCost)}/ชุด</div>}</div>)}</td><td className="py-3 px-3 text-center font-mono text-xs whitespace-nowrap">{item.w_cm} x {item.h_cm}</td><td className="py-3 px-3 text-center">{item.side}</td><td className="py-3 px-3 text-center">{item.qty}</td><td className="py-3 px-3 text-right font-mono">{formatCurrency(item.totalPerUnit)}</td><td className="py-3 px-3 text-right font-bold">{formatCurrency(item.grandTotal)}</td></tr>{showMethod && (<tr className="bg-slate-50 border-b border-slate-100"><td colSpan="7" className="py-2 px-4 text-xs text-slate-500"><div className="font-bold text-slate-700 mb-1">วิธีคำนวณ:</div><ul className="list-disc list-inside space-y-0.5"><li>ผ้า: {item.details.fabricFormula}</li>{item.type === 'external' && (<><li>รางบน: {item.details.topRailFormula}</li><li>รางล่าง: {item.details.bottomRailFormula}</li><li>สลิง: {item.details.slingFormula}</li><li>อุปกรณ์: {formatCurrency(item.details.hardwarePrice)}</li><li className="font-bold text-red-600">รวมต่อชุด: {item.details.sumFormula}</li></>)}{item.type !== 'external' && <li>{item.details.mainFormula}</li>}</ul></td></tr>)}</React.Fragment>))}</tbody>
                                 </table>
                                 <div className="mt-8 flex justify-end">
                                     <div className="w-64 space-y-2">
@@ -1239,6 +1239,73 @@
             );
         };
         
+        const BulkEditModal = ({ items, onSave, onClose, theme, recalculateFn }) => {
+            const [editedItems, setEditedItems] = useState(items.map(item => ({...item, editPrice: item.unitPrice})));
+            const [globalPrice, setGlobalPrice] = useState('');
+
+            const handlePriceChange = (id, newPrice) => {
+                setEditedItems(prev => prev.map(item => item.id === id ? { ...item, editPrice: newPrice } : item));
+            };
+
+            const handleApplyGlobal = () => {
+                if(!globalPrice) return;
+                setEditedItems(prev => prev.map(item => ({ ...item, editPrice: globalPrice })));
+            };
+
+            const handleSave = () => {
+                const finalItems = editedItems.map(item => {
+                    const price = parseFloat(item.editPrice);
+                    if (!isNaN(price) && price !== item.unitPrice) {
+                        return recalculateFn(items.find(i => i.id === item.id), price);
+                    }
+                    return items.find(i => i.id === item.id);
+                });
+                onSave(finalItems);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 fade-in">
+                    <div className={`bg-white rounded-[2rem] w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden scale-in ${theme.textMain}`}>
+                        <div className="p-5 border-b flex justify-between items-center bg-slate-50/80 backdrop-blur-md">
+                            <h3 className="font-bold text-lg flex items-center gap-2"><Icons.Edit size={24} className={theme.icon} /> แก้ไขราคาต้นทุน/ราคาผ้า</h3>
+                            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><Icons.X size={24} /></button>
+                        </div>
+                        <div className="p-4 bg-orange-50 border-b border-orange-100 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                            <div className="flex-1 w-full">
+                                <label className="text-xs font-bold text-orange-600 block mb-1">เปลี่ยนราคาทุกรายการเป็น:</label>
+                                <input type="number" value={globalPrice} onChange={e => setGlobalPrice(e.target.value)} className="w-full bg-white border border-orange-200 rounded-lg p-2.5 font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-300" placeholder="ระบุราคาใหม่..." />
+                            </div>
+                            <button onClick={handleApplyGlobal} className={`w-full sm:w-auto px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-colors shadow-sm whitespace-nowrap`}>ใช้กับทั้งหมด</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                            {editedItems.map((item, index) => (
+                                <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100 gap-4">
+                                    <div className="flex-1">
+                                        <div className="font-bold text-sm">{index + 1}. {item.typeName}</div>
+                                        <div className="text-xs text-slate-500 mt-1">ขนาด: {item.w_cm}x{item.h_cm} cm | จำนวน: {item.qty} ชุด</div>
+                                        <div className="text-xs text-slate-400 mt-1">ยอดรวมเดิม: {formatCurrency(items.find(i => i.id === item.id)?.grandTotal)}</div>
+                                    </div>
+                                    <div className="w-full sm:w-1/3">
+                                        <label className="text-xs font-bold text-slate-400 block mb-1">ราคาต่อหน่วย/ราคาผ้า</label>
+                                        <input 
+                                            type="number" 
+                                            value={item.editPrice || ''} 
+                                            onChange={(e) => handlePriceChange(item.id, e.target.value)} 
+                                            className={`input-apple w-full bg-white border border-slate-300 rounded-lg p-2 font-bold text-lg text-right ${theme.inputRing}`}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-5 bg-white border-t flex gap-3">
+                            <button onClick={onClose} className={`flex-1 py-3 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors`}>ยกเลิก</button>
+                            <button onClick={handleSave} className={`flex-[2] py-3 rounded-xl font-bold text-white shadow-md transition-colors ${theme.btnPrimary}`}>คำนวณใหม่และบันทึก</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
         const CalculatorPage = ({ config, items, setItems, user, onLogin, userProfile, theme, aluminumPrices }) => {
             const [calcMode, setCalcMode] = useState('external');
             const [alumSystem, setAlumSystem] = useState('standard');
@@ -1254,8 +1321,13 @@
             const [useInstallFee, setUseInstallFee] = useState(false);
             const [installFee, setInstallFee] = useState('');
 
+            // --- NEW: Motor System Fee States ---
+            const [useMotorFee, setUseMotorFee] = useState(false);
+            const [motorFee, setMotorFee] = useState('');
+
             // --- NEW: Editing State ---
             const [editingId, setEditingId] = useState(null);
+            const [showBulkEdit, setShowBulkEdit] = useState(false); // NEW: Bulk edit state
 
             const availableModes = useMemo(() => {
                 const modes = [];
@@ -1304,6 +1376,8 @@
                     setFormData(p.formData);
                     setUseInstallFee(p.useInstallFee || false);
                     setInstallFee(p.installFee || '');
+                    setUseMotorFee(p.useMotorFee || false);
+                    setMotorFee(p.motorFee || '');
                 } else {
                     // Fallback for old items without rawParams
                     setCalcMode(item.type);
@@ -1326,6 +1400,8 @@
                 setFormData({ width: '', height: '', price: '', qty: '1', side: 'ขวา', woodType: 'BASSWOOD' });
                 setUseInstallFee(false);
                 setInstallFee('');
+                setUseMotorFee(false);
+                setMotorFee('');
                 setPvcCustomPrice('');
             };
 
@@ -1338,6 +1414,18 @@
                 if (useInstallFee && installFee) {
                     installCost = parseFloat(installFee) || 0;
                 }
+
+                // Get Motor Fee
+                let motorCost = 0;
+                if (useMotorFee && motorFee) {
+                    motorCost = parseFloat(motorFee) || 0;
+                }
+
+                let extraCost = installCost + motorCost;
+                let extraTextArray = [];
+                if (installCost > 0) extraTextArray.push(`ติดตั้ง ${formatCurrency(installCost)}`);
+                if (motorCost > 0) extraTextArray.push(`มอเตอร์ ${formatCurrency(motorCost)}`);
+                let extraText = extraTextArray.length > 0 ? ` + ${extraTextArray.join(' + ')}` : '';
                 
                 let price = 0; let totalPerUnit = 0; let details = {}; let typeName = "";
                 let w_cm = parseFloat(formData.width) || 0;
@@ -1351,8 +1439,8 @@
                     typeName = selectedRail.label;
                     
                     if (railType === 'ceiling_bracket') {
-                        totalPerUnit = price + installCost;
-                        const mainFormula = `${price} บาท x 1 ชุด = ${formatCurrency(price)}`;
+                        totalPerUnit = price + extraCost;
+                        const mainFormula = `${price} บาท x 1 ชุด = ${formatCurrency(price)}${extraText}`;
                         details = {
                             mainFormula: mainFormula,
                             sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}`
@@ -1361,10 +1449,10 @@
                         if (!w_cm) return setErrorMsg('กรุณากรอกความกว้าง');
                         const w_m = w_cm / 100;
                         const pricePerSet = w_m * price;
-                        totalPerUnit = pricePerSet + installCost;
+                        totalPerUnit = pricePerSet + extraCost;
                         
                         let formulaText = `${w_m.toFixed(2)}m x ${formatCurrency(price)} = ${formatCurrency(pricePerSet)}`;
-                        if (installCost > 0) formulaText += ` + ติดตั้ง ${formatCurrency(installCost)}`;
+                        formulaText += extraText;
                         
                         details = {
                             mainFormula: formulaText,
@@ -1379,14 +1467,14 @@
                     const w_m_input = w_cm / 100; const h_m_input = h_cm / 100;
                     const w_calc = getPvcCalcWidth(w_m_input); const h_calc = getPvcCalcHeight(h_m_input);
                     const pricePerSet = w_calc * h_calc * 1.2 * unitPrice;
-                    totalPerUnit = pricePerSet + installCost; // Add Install Cost
+                    totalPerUnit = pricePerSet + extraCost; // Add Install Cost
                     price = unitPrice; 
                     const openingLabel = pvcOpeningOptions.find(o => o.id === pvcOpenType)?.label || pvcOpenType;
                     typeName = `ฉากกั้นห้อง PVC (${selectedPvc.label}) - ${openingLabel}`;
                     
                     let formulaText = `${w_calc.toFixed(2)}m x ${h_calc.toFixed(2)}m x 1.2 x ${formatCurrency(unitPrice)} = ${formatCurrency(pricePerSet)}`;
-                    if (installCost > 0) {
-                        formulaText += ` + ติดตั้ง ${formatCurrency(installCost)} = ${formatCurrency(totalPerUnit)}`;
+                    if (extraCost > 0) {
+                        formulaText += `${extraText} = ${formatCurrency(totalPerUnit)}`;
                     }
 
                     details = { 
@@ -1398,12 +1486,12 @@
                     if (alumSystem === 'wood_pattern') {
                         const w_m = w_cm / 100; const h_m = h_cm / 100; const unitPrice = w_m * h_m * config.aluminumWoodPrice; 
                         price = unitPrice; 
-                        totalPerUnit = unitPrice + installCost; // Add Install Cost
+                        totalPerUnit = unitPrice + extraCost; // Add Install Cost
                         typeName = 'มู่ลี่อลูมิเนียม (ลายไม้)';
                         
                         let formulaText = `${w_m.toFixed(2)}m x ${h_m.toFixed(2)}m x ${config.aluminumWoodPrice} = ${formatCurrency(unitPrice)}`;
-                        if (installCost > 0) {
-                            formulaText += ` + ติดตั้ง ${formatCurrency(installCost)} = ${formatCurrency(totalPerUnit)}`;
+                        if (extraCost > 0) {
+                            formulaText += `${extraText} = ${formatCurrency(totalPerUnit)}`;
                         }
 
                         details = { 
@@ -1419,16 +1507,16 @@
                         let discountInfo = alumSystem === 'standard' ? "ลด 60% + 5%" : "ลด 60%";
                         typeName = `มู่ลี่อลูมิเนียม (${alumSystem === 'standard' ? 'ระบบธรรมดา' : 'ระบบโซ่วน'})`;
                         price = netPrice; 
-                        totalPerUnit = netPrice + installCost; // Add Install Cost
+                        totalPerUnit = netPrice + extraCost; // Add Install Cost
                         
                         let mainFormulaText = `ขนาด ${w_cm}x${h_cm} => ปัดเป็น ${roundedW}x${roundedH} = ${formatCurrency(basePrice)}`;
-                        if (installCost > 0) {
-                             mainFormulaText += ` (สุทธิ ${formatCurrency(netPrice)} + ติดตั้ง ${formatCurrency(installCost)})`;
+                        if (extraCost > 0) {
+                             mainFormulaText += ` (สุทธิ ${formatCurrency(netPrice)}${extraText})`;
                         }
 
                         details = { 
                             mainFormula: mainFormulaText, 
-                            sumFormula: `ราคาตาราง ${formatCurrency(basePrice)} (${discountInfo}) = ${formatCurrency(netPrice)} ${installCost > 0 ? `+ ค่าติดตั้ง ${formatCurrency(installCost)}` : ''} = ${formatCurrency(totalPerUnit)}` 
+                            sumFormula: `ราคาตาราง ${formatCurrency(basePrice)} (${discountInfo}) = ${formatCurrency(netPrice)} ${extraText} = ${formatCurrency(totalPerUnit)}` 
                         };
                     }
                 } else {
@@ -1488,10 +1576,10 @@
                         totalPerUnit = fabricCostPerUnit + hw + top + bot + sling;
                         
                         // Add Install Cost
-                        totalPerUnit += installCost;
+                        totalPerUnit += extraCost;
 
                         let sumFormulaText = `${fabricCostPerUnit.toFixed(1)} + ${hw} + ${top.toFixed(0)} + ${bot.toFixed(0)} + ${sling.toFixed(1)}`;
-                        if (installCost > 0) sumFormulaText += ` + ${installCost} (ติดตั้ง)`;
+                        if (extraCost > 0) sumFormulaText += extraText;
                         sumFormulaText += ` = ${totalPerUnit.toFixed(1)}`;
 
                         details = { 
@@ -1505,15 +1593,15 @@
                         typeName = 'ม่านม้วนภายนอก';
                     } else if (calcMode === 'internal') {
                         typeName = 'ม่านม้วนภายใน';
-                        totalPerUnit = fabricCostPerUnit + installCost; // Add Install Cost
-                        if (installCost > 0) {
-                            details.mainFormula += ` + ค่าติดตั้ง ${formatCurrency(installCost)} = ${formatCurrency(totalPerUnit)}`;
+                        totalPerUnit = fabricCostPerUnit + extraCost; // Add Install Cost
+                        if (extraCost > 0) {
+                            details.mainFormula += `${extraText} = ${formatCurrency(totalPerUnit)}`;
                         }
                     } else {
                         typeName = `มู่ลี่ไม้ (${formData.woodType})`;
-                        totalPerUnit = fabricCostPerUnit + installCost; // Add Install Cost
-                        if (installCost > 0) {
-                            details.mainFormula += ` + ค่าติดตั้ง ${formatCurrency(installCost)} = ${formatCurrency(totalPerUnit)}`;
+                        totalPerUnit = fabricCostPerUnit + extraCost; // Add Install Cost
+                        if (extraCost > 0) {
+                            details.mainFormula += `${extraText} = ${formatCurrency(totalPerUnit)}`;
                         }
                     }
                 }
@@ -1522,7 +1610,8 @@
                 const rawParams = {
                     calcMode, alumSystem, pvcType, pvcOpenType, pvcCustomPrice, railType, 
                     formData: { ...formData }, // Clone to avoid ref issues
-                    useInstallFee, installFee
+                    useInstallFee, installFee,
+                    useMotorFee, motorFee
                 };
 
                 const newItem = { 
@@ -1530,7 +1619,8 @@
                     w_cm, h_cm, w_m: w_cm/100, h_m: h_cm/100, unitPrice: price, qty, 
                     side: formData.side, type: calcMode, typeName, totalPerUnit, 
                     grandTotal: totalPerUnit * qty, details,
-                    rawParams // Save the state
+                    rawParams, // Save the state
+                    installCost, motorCost
                 };
 
                 if (editingId) {
@@ -1546,7 +1636,114 @@
                 // Reset form slightly differently if editing or adding
                 setFormData(prev => ({ ...prev, width: '', height: '' }));
                 setUseInstallFee(false); setInstallFee(''); 
+                setUseMotorFee(false); setMotorFee('');
                 if(calcMode === 'pvc') setPvcCustomPrice('');
+            };
+
+            const recalculateItemWithPrice = (item, newPrice) => {
+                if (!item.rawParams) return item; 
+                
+                const p = JSON.parse(JSON.stringify(item.rawParams));
+                const calcMode = p.calcMode;
+                const w_cm = parseFloat(p.formData.width) || 0;
+                const h_cm = parseFloat(p.formData.height) || 0;
+                const qty = parseInt(p.formData.qty) || 1;
+                const w_m = w_cm / 100;
+                const h_m = h_cm / 100;
+                
+                let installCost = p.useInstallFee ? (parseFloat(p.installFee) || 0) : 0;
+                let motorCost = p.useMotorFee ? (parseFloat(p.motorFee) || 0) : 0;
+                let extraCost = installCost + motorCost;
+                let extraTextArray = [];
+                if (installCost > 0) extraTextArray.push(`ติดตั้ง ${formatCurrency(installCost)}`);
+                if (motorCost > 0) extraTextArray.push(`มอเตอร์ ${formatCurrency(motorCost)}`);
+                let extraText = extraTextArray.length > 0 ? ` + ${extraTextArray.join(' + ')}` : '';
+                
+                let totalPerUnit = 0; let details = {};
+                let price = parseFloat(newPrice);
+                if(isNaN(price)) return item; 
+
+                const baseFactor = calcMode === 'wooden' ? 1.2 : config.fabricFactor;
+                
+                if (calcMode === 'external' || calcMode === 'internal') {
+                    let calculatedArea = w_m * h_m * baseFactor;
+                    let finalArea = calculatedArea < 1.2 ? 1.2 : calculatedArea;
+                    let formulaExtra = calculatedArea < 1.2 ? " (ขั้นต่ำ 1.20 ตร.ล.)" : "";
+                    
+                    const fabricCostPerUnit = finalArea * price; 
+                    details = { mainFormula: `${w_m.toFixed(2)}m * ${h_m.toFixed(2)}m * ${baseFactor} = ${finalArea.toFixed(3)} ตร.ล. * ${price} = ${fabricCostPerUnit.toFixed(2)}${formulaExtra}` };
+                    
+                    if (calcMode === 'external') {
+                        const hw = config.hardwarePrice; 
+                        const top = config.topRailPrice * w_m; 
+                        const bot = config.bottomRailPrice * w_m; 
+                        const sling = config.slingPrice * h_m;
+                        totalPerUnit = fabricCostPerUnit + hw + top + bot + sling + extraCost;
+                        
+                        let sumFormulaText = `${fabricCostPerUnit.toFixed(1)} + ${hw} + ${top.toFixed(0)} + ${bot.toFixed(0)} + ${sling.toFixed(1)}`;
+                        if (extraCost > 0) sumFormulaText += extraText;
+                        sumFormulaText += ` = ${totalPerUnit.toFixed(1)}`;
+
+                        details = { ...details, topRailFormula: `${config.topRailPrice} * ${w_m.toFixed(2)} = ${top.toFixed(2)}`, bottomRailFormula: `${config.bottomRailPrice} * ${w_m.toFixed(2)} = ${bot.toFixed(2)}`, slingFormula: `${config.slingPrice} * ${h_m.toFixed(2)} = ${sling.toFixed(2)}`, hardwarePrice: hw, sumFormula: sumFormulaText };
+                    } else {
+                        totalPerUnit = fabricCostPerUnit + extraCost;
+                        if (extraCost > 0) details.mainFormula += `${extraText} = ${formatCurrency(totalPerUnit)}`;
+                    }
+                    p.formData.price = price.toString();
+                } else if (calcMode === 'wooden') {
+                    let pricing_w_m = w_m < 0.80 ? 0.80 : w_m;
+                    let pricing_h_m = h_m < 1.00 ? 1.00 : h_m;
+                    let formulaExtra = "";
+                    if (w_cm < 80) formulaExtra += " (ขั้นต่ำ ก. 0.80)";
+                    if (h_cm < 100) formulaExtra += " (ขั้นต่ำ ส. 1.00)";
+                    let finalArea = pricing_w_m * pricing_h_m * baseFactor;
+                    const fabricCostPerUnit = finalArea * price; 
+                    details = { mainFormula: `${pricing_w_m.toFixed(2)} * ${pricing_h_m.toFixed(2)} * ${baseFactor} * ${price} = ${fabricCostPerUnit.toFixed(2)}${formulaExtra}` };
+                    totalPerUnit = fabricCostPerUnit + extraCost;
+                    if (extraCost > 0) details.mainFormula += `${extraText} = ${formatCurrency(totalPerUnit)}`;
+                } else if (calcMode === 'rail') {
+                    if (p.railType === 'ceiling_bracket') {
+                        totalPerUnit = price + extraCost;
+                        details = { mainFormula: `${price} บาท x 1 ชุด = ${formatCurrency(price)}${extraText}`, sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}` };
+                    } else {
+                        const pricePerSet = w_m * price;
+                        totalPerUnit = pricePerSet + extraCost;
+                        let formulaText = `${w_m.toFixed(2)}m x ${formatCurrency(price)} = ${formatCurrency(pricePerSet)}${extraText}`;
+                        details = { mainFormula: formulaText, sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}` };
+                    }
+                } else if (calcMode === 'pvc') {
+                    const w_calc = w_m < 1.00 ? 1.00 : w_m;
+                    const getPvcCalcHeight = (h) => { if (h < 2.00) return 2.00; if (h <= 2.01) return 2.00; if (h <= 2.21) return 2.20; if (h <= 2.41) return 2.40; if (h <= 2.61) return 2.60; if (h <= 2.81) return 2.80; if (h <= 3.01) return 3.00; if (h <= 3.31) return 3.30; if (h <= 3.51) return 3.50; if (h <= 3.70) return 3.70; return h; };
+                    const h_calc = getPvcCalcHeight(h_m);
+                    const pricePerSet = w_calc * h_calc * 1.2 * price;
+                    totalPerUnit = pricePerSet + extraCost;
+                    let formulaText = `${w_calc.toFixed(2)}m x ${h_calc.toFixed(2)}m x 1.2 x ${formatCurrency(price)} = ${formatCurrency(pricePerSet)}`;
+                    if (extraCost > 0) formulaText += `${extraText} = ${formatCurrency(totalPerUnit)}`;
+                    details = { mainFormula: formulaText, sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}` };
+                    p.pvcType = 'custom';
+                    p.pvcCustomPrice = price.toString();
+                } else if (calcMode === 'aluminum') {
+                    if (p.alumSystem === 'wood_pattern') {
+                        const unitPrice = w_m * h_m * price;
+                        totalPerUnit = unitPrice + extraCost;
+                        let formulaText = `${w_m.toFixed(2)}m x ${h_m.toFixed(2)}m x ${price} = ${formatCurrency(unitPrice)}`;
+                        if (extraCost > 0) formulaText += `${extraText} = ${formatCurrency(totalPerUnit)}`;
+                        details = { mainFormula: formulaText, sumFormula: `${formatCurrency(totalPerUnit)} x ${qty} ชุด = ${formatCurrency(totalPerUnit * qty)}` };
+                    } else {
+                        const netPrice = price;
+                        totalPerUnit = netPrice + extraCost;
+                        details = { mainFormula: `แก้ไขราคาแมนนวล = ${formatCurrency(netPrice)}`, sumFormula: `${formatCurrency(netPrice)} ${extraText} = ${formatCurrency(totalPerUnit)}` };
+                    }
+                }
+                
+                return {
+                    ...item,
+                    unitPrice: price,
+                    totalPerUnit,
+                    grandTotal: totalPerUnit * qty,
+                    details,
+                    rawParams: p
+                };
             };
 
             const saveToHistory = async () => {
@@ -1582,33 +1779,63 @@
                             {calcMode !== 'pvc' && calcMode !== 'rail' && (<div className="mb-6"><label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>ตำแหน่งโซ่/สลิง</label><div className="flex gap-4">{['ซ้าย', 'ขวา'].map(s => (<label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}><input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" /><span className="font-bold">{s}</span></label>))}</div></div>)}
                             {calcMode === 'rail' && railType !== 'ceiling_bracket' && (<div className="mb-6"><label className={`text-xs font-bold uppercase tracking-wider mb-3 block ml-1 ${theme.textSub}`}>รูปแบบการเปิด</label><div className="flex gap-4">{['เปิดกลาง', 'เปิดข้าง'].map(s => (<label key={s} className={`flex-1 cursor-pointer border-2 rounded-xl py-3 flex items-center justify-center gap-2 transition-all ${formData.side === s ? `${theme.border} ${theme.bgSoft} ${theme.primary} shadow-sm` : 'border-slate-100 text-slate-400 hover:border-slate-300'}`}><input type="radio" name="side" value={s} checked={formData.side === s} onChange={handleInputChange} className="hidden" /><span className="font-bold">{s}</span></label>))}</div></div>)}
                             
-                            {/* --- NEW: Installation Fee Toggle --- */}
-                            <div className={`mb-8 p-4 rounded-xl border border-slate-100 bg-slate-50 transition-all ${useInstallFee ? 'ring-1 ring-orange-100' : ''}`}>
-                                <label className={`flex items-center gap-3 cursor-pointer ${theme.textMain} select-none`}>
-                                    <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${useInstallFee ? 'bg-orange-500 border-orange-500' : 'bg-white border-slate-300'}`}>
-                                        {useInstallFee && <Icon path={<polyline points="20 6 9 17 4 12"></polyline>} size={16} className="text-white stroke-2" />}
-                                        <input type="checkbox" checked={useInstallFee} onChange={(e) => setUseInstallFee(e.target.checked)} className="hidden" />
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Icons.Wrench size={18} className={useInstallFee ? 'text-orange-500' : 'text-slate-400'} />
-                                        <span className={`font-bold text-sm ${useInstallFee ? 'text-slate-700' : 'text-slate-500'}`}>รวมค่าบริการติดตั้ง</span>
-                                    </div>
-                                </label>
-                                {useInstallFee && (
-                                    <div className="mt-3 animate-scale-in">
-                                        <div className="flex items-center justify-between mb-1.5 ml-1">
-                                            <label className="text-xs font-bold text-slate-400">ค่าติดตั้ง (ต่อชุด)</label>
+                            {/* --- Fee Toggles --- */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                                <div className={`p-4 rounded-xl border border-slate-100 bg-slate-50 transition-all ${useInstallFee ? 'ring-1 ring-orange-100' : ''}`}>
+                                    <label className={`flex items-center gap-3 cursor-pointer ${theme.textMain} select-none`}>
+                                        <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${useInstallFee ? 'bg-orange-500 border-orange-500' : 'bg-white border-slate-300'}`}>
+                                            {useInstallFee && <Icon path={<polyline points="20 6 9 17 4 12"></polyline>} size={16} className="text-white stroke-2" />}
+                                            <input type="checkbox" checked={useInstallFee} onChange={(e) => setUseInstallFee(e.target.checked)} className="hidden" />
                                         </div>
-                                        <input
-                                            type="number"
-                                            value={installFee}
-                                            onChange={(e) => setInstallFee(e.target.value)}
-                                            className={`input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700 ${theme.inputRing} placeholder-slate-300`}
-                                            placeholder="ระบุราคา..."
-                                            autoFocus
-                                        />
-                                    </div>
-                                )}
+                                        <div className="flex items-center gap-2">
+                                            <Icons.Wrench size={18} className={useInstallFee ? 'text-orange-500' : 'text-slate-400'} />
+                                            <span className={`font-bold text-sm ${useInstallFee ? 'text-slate-700' : 'text-slate-500'}`}>รวมค่าบริการติดตั้ง</span>
+                                        </div>
+                                    </label>
+                                    {useInstallFee && (
+                                        <div className="mt-3 animate-scale-in">
+                                            <div className="flex items-center justify-between mb-1.5 ml-1">
+                                                <label className="text-xs font-bold text-slate-400">ค่าติดตั้ง (ต่อชุด)</label>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                value={installFee}
+                                                onChange={(e) => setInstallFee(e.target.value)}
+                                                className={`input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700 ${theme.inputRing} placeholder-slate-300`}
+                                                placeholder="ระบุราคา..."
+                                                autoFocus
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className={`p-4 rounded-xl border border-slate-100 bg-slate-50 transition-all ${useMotorFee ? 'ring-1 ring-blue-100' : ''}`}>
+                                    <label className={`flex items-center gap-3 cursor-pointer ${theme.textMain} select-none`}>
+                                        <div className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${useMotorFee ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-300'}`}>
+                                            {useMotorFee && <Icon path={<polyline points="20 6 9 17 4 12"></polyline>} size={16} className="text-white stroke-2" />}
+                                            <input type="checkbox" checked={useMotorFee} onChange={(e) => setUseMotorFee(e.target.checked)} className="hidden" />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Icons.Settings size={18} className={useMotorFee ? 'text-blue-500' : 'text-slate-400'} />
+                                            <span className={`font-bold text-sm ${useMotorFee ? 'text-slate-700' : 'text-slate-500'}`}>เพิ่มระบบมอเตอร์</span>
+                                        </div>
+                                    </label>
+                                    {useMotorFee && (
+                                        <div className="mt-3 animate-scale-in">
+                                            <div className="flex items-center justify-between mb-1.5 ml-1">
+                                                <label className="text-xs font-bold text-slate-400">ค่ามอเตอร์ (ต่อชุด)</label>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                value={motorFee}
+                                                onChange={(e) => setMotorFee(e.target.value)}
+                                                className={`input-apple w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-slate-700 ${theme.inputRing} placeholder-slate-300`}
+                                                placeholder="ระบุราคา..."
+                                                autoFocus
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {errorMsg && <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl flex items-center gap-3 animate-pulse border border-red-100"><Icons.AlertCircle size={20} /> {errorMsg}</div>}
@@ -1625,8 +1852,9 @@
                             </div>
                         </div>
                     )}
-                    {items.length > 0 && (<div className="space-y-4 pb-20"><div className="flex justify-between items-center px-4"><span className={`text-sm font-bold uppercase tracking-wider ${theme.textSub}`}>รายการ ({items.length})</span><button onClick={() => setItems([])} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${theme.btnSecondary}`}><Icons.Trash2 size={14}/> ล้าง</button></div>{items.map((item) => (<div key={item.id} className={`bg-white p-5 rounded-2xl border border-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] relative group scale-in hover:scale-[1.02] transition-transform ${editingId === item.id ? 'ring-2 ring-orange-400 opacity-50' : ''}`}><div className="absolute top-4 right-4 flex gap-2"><button onClick={() => handleEdit(item)} disabled={!!editingId} className={`p-2 rounded-full transition-colors ${theme.textSub} hover:text-orange-500 hover:bg-orange-50 disabled:opacity-30`}><Icons.Edit size={18} /></button><button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} disabled={!!editingId} className={`p-2 rounded-full transition-colors ${theme.textSub} hover:${theme.primary} hover:${theme.bgSoft} disabled:opacity-30`}><Icons.X size={18} /></button></div><div className="flex items-center gap-3 mb-4"><div className={`p-2 rounded-xl ${theme.bgSoft} ${theme.primary}`}>{item.type === 'external' ? <Icons.Sun size={18} /> : item.type === 'wooden' ? <Icons.Blinds size={18} /> : item.type === 'aluminum' ? <Icons.Blinds size={18} /> : item.type === 'pvc' ? <Icons.Fold size={18} /> : item.type === 'rail' ? <Icon path={<line x1="2" y1="12" x2="22" y2="12"></line>} size={18} /> : <Icons.Roller size={18} />}</div><span className={`text-sm font-bold ${theme.textMain}`}>{item.typeName}</span></div><div className="flex justify-between items-end"><div><div className={`text-lg font-bold font-mono tracking-tight ${theme.textMain}`}>{item.w_cm || '-'} <span className="text-slate-400 text-sm">x</span> {item.h_cm || '-'} <span className="text-xs text-slate-400 font-sans">cm</span></div><div className={`text-xs font-medium mt-1 inline-block px-2 py-1 rounded-md border border-slate-100 ${theme.textSub} ${theme.bgSoft}`}>จำนวน {item.qty} ชุด • ปรับ{item.side}</div></div><div className={`text-xl font-bold ${theme.highlight}`}>{formatCurrency(item.grandTotal)}</div></div></div>))}<button onClick={() => setShowQuote(true)} className={`w-full px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg active:scale-95 transition-all mt-4 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button></div>)}
+                    {items.length > 0 && (<div className="space-y-4 pb-20"><div className="flex justify-between items-center px-4"><span className={`text-sm font-bold uppercase tracking-wider ${theme.textSub}`}>รายการ ({items.length})</span><div className="flex gap-2"><button onClick={() => setShowBulkEdit(true)} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${theme.btnSecondary}`}><Icons.Edit size={14}/> แก้ไขราคา</button><button onClick={() => setItems([])} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${theme.btnSecondary}`}><Icons.Trash2 size={14}/> ล้าง</button></div></div>{items.map((item) => (<div key={item.id} className={`bg-white p-5 rounded-2xl border border-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] relative group scale-in hover:scale-[1.02] transition-transform ${editingId === item.id ? 'ring-2 ring-orange-400 opacity-50' : ''}`}><div className="absolute top-4 right-4 flex gap-2"><button onClick={() => handleEdit(item)} disabled={!!editingId} className={`p-2 rounded-full transition-colors ${theme.textSub} hover:text-orange-500 hover:bg-orange-50 disabled:opacity-30`}><Icons.Edit size={18} /></button><button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} disabled={!!editingId} className={`p-2 rounded-full transition-colors ${theme.textSub} hover:${theme.primary} hover:${theme.bgSoft} disabled:opacity-30`}><Icons.X size={18} /></button></div><div className="flex items-center gap-3 mb-4"><div className={`p-2 rounded-xl ${theme.bgSoft} ${theme.primary}`}>{item.type === 'external' ? <Icons.Sun size={18} /> : item.type === 'wooden' ? <Icons.Blinds size={18} /> : item.type === 'aluminum' ? <Icons.Blinds size={18} /> : item.type === 'pvc' ? <Icons.Fold size={18} /> : item.type === 'rail' ? <Icon path={<line x1="2" y1="12" x2="22" y2="12"></line>} size={18} /> : <Icons.Roller size={18} />}</div><span className={`text-sm font-bold ${theme.textMain}`}>{item.typeName}</span></div><div className="flex justify-between items-end"><div><div className={`text-lg font-bold font-mono tracking-tight ${theme.textMain}`}>{item.w_cm || '-'} <span className="text-slate-400 text-sm">x</span> {item.h_cm || '-'} <span className="text-xs text-slate-400 font-sans">cm</span></div><div className={`text-xs font-medium mt-1 inline-block px-2 py-1 rounded-md border border-slate-100 ${theme.textSub} ${theme.bgSoft}`}>จำนวน {item.qty} ชุด • ปรับ{item.side}</div></div><div className={`text-xl font-bold ${theme.highlight}`}>{formatCurrency(item.grandTotal)}</div></div></div>))}<button onClick={() => setShowQuote(true)} className={`w-full px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 font-bold text-lg active:scale-95 transition-all mt-4 hover:-translate-y-1 ${theme.btnPrimary}`}><Icons.FileText size={24} /> สรุปราคา {formatCurrency(items.reduce((a,b) => a+b.grandTotal, 0))}</button></div>)}
                     {showQuote && <QuotationModal items={items} onClose={() => setShowQuote(false)} config={config} userProfile={userProfile} theme={theme} />}
+                    {showBulkEdit && <BulkEditModal items={items} onSave={(newItems) => { setItems(newItems); setShowBulkEdit(false); }} onClose={() => setShowBulkEdit(false)} theme={theme} recalculateFn={recalculateItemWithPrice} />}
                 </div>
             );
         };
